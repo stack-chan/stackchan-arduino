@@ -1,0 +1,23 @@
+{
+    "name": "Stackchan-arduino",
+    "keywords": "stackchan, servo, M5Stack",
+    "description": "An M5Stack library for Stackchan",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/mongonta0716/stackchan-arduino.git"
+    },
+    "authors": [
+      {
+        "name": "Takao Akaki",
+        "email": "takaoakaki@gmail.com",
+        "url": "https://mongonta0716.github.io/",
+        "maintainer": true
+      }
+    ],
+    "license": "MIT",
+    "dependencies": {
+    },
+    "version": "0.0.1",
+    "frameworks": "arduino",
+    "platforms": "espressif32"
+  }
