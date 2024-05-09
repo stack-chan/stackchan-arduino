@@ -7,6 +7,7 @@
 // その対処でStackchan_servo.hはh, Stackchan_servo.cppはhppをincludeしています。
 #define SUPPRESS_HPP_WARNING
 #include <Ticker.h>
+#include <ESP32Servo.h>
 #include <ServoEasing.h>
 #include <SCServo.h>
 
