@@ -1,3 +1,4 @@
+# 個人情報用の設定ファイル
 wifi:
   ssid: "YOUR_WIFI_SSID"
   password: "YOUR_WIFI_PASSWORD"

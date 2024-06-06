@@ -191,7 +191,7 @@ void StackchanSystemConfig::printAllParameters() {
     M5_LOGI("use takao_base:%s\n", _takao_base ? "true":"false");
     M5_LOGI("ServoTypeStr:%s\n", _servo_type_str.c_str());
     M5_LOGI("ServoType: %d\n", _servo_type);
-    M5_LOGI("ExtendConfigFileName: %s\n", _extend_config_filename);
+    M5_LOGI("ExtendConfigFileName: %s\n", _extend_config_filename.c_str());
     M5_LOGI("ExtendConfigFileSize: %d\n", _extend_config_filesize);
 
     printExtParameters();
