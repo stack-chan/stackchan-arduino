@@ -8,6 +8,19 @@ long convertSCS0009Pos(int16_t degree) {
   return map(degree, 0, 300, 1023, 0);
 }
 
+// シリアルサーボ用のEasing関数
+float quadraticEaseInOut(float p) {
+  //return p;
+  if(p < 0.5)
+	{
+		return 2 * p * p;
+	}
+	else
+	{
+		return (-2 * p * p) + (4 * p) - 1;
+	}
+}
+
 StackchanSERVO::StackchanSERVO() {}
 
 StackchanSERVO::~StackchanSERVO() {}
@@ -21,6 +34,7 @@ void StackchanSERVO::attachServos() {
     _sc.WritePos(AXIS_X + 1, convertSCS0009Pos(_init_param.servo[AXIS_X].start_degree + _init_param.servo[AXIS_X].offset), 1000);
     _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(_init_param.servo[AXIS_Y].start_degree + _init_param.servo[AXIS_Y].offset), 1000);
     vTaskDelay(1000/portTICK_PERIOD_MS);
+
   } else {
     // SG90 PWM
     if (_servo_x.attach(_init_param.servo[AXIS_X].pin, 
@@ -39,6 +53,8 @@ void StackchanSERVO::attachServos() {
     _servo_x.setEasingType(EASE_QUADRATIC_IN_OUT);
     _servo_y.setEasingType(EASE_QUADRATIC_IN_OUT);
   }
+  _last_degree_x = _init_param.servo[AXIS_X].start_degree;
+  _last_degree_y = _init_param.servo[AXIS_Y].start_degree;
 }
 
 void StackchanSERVO::begin(stackchan_servo_initial_param_s init_param) {
@@ -75,6 +91,7 @@ void StackchanSERVO::moveX(int x, uint32_t millis_for_move) {
     synchronizeAllServosStartAndWaitForAllServosToStop();
     _isMoving = false;
   }
+  _last_degree_x = x;
 }
 
 void StackchanSERVO::moveX(servo_param_s servo_param_x) {
@@ -98,6 +115,7 @@ void StackchanSERVO::moveY(int y, uint32_t millis_for_move) {
     synchronizeAllServosStartAndWaitForAllServosToStop();
     _isMoving = false;
   }
+  _last_degree_y = y;
 }
 
 void StackchanSERVO::moveY(servo_param_s servo_param_y) {
@@ -106,10 +124,18 @@ void StackchanSERVO::moveY(servo_param_s servo_param_y) {
 }
 void StackchanSERVO::moveXY(int x, int y, uint32_t millis_for_move) {
   if (_servo_type == SCS) {
-    _sc.WritePos(AXIS_X + 1, convertSCS0009Pos(x + _init_param.servo[AXIS_X].offset), millis_for_move);
-    _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(y + _init_param.servo[AXIS_Y].offset), millis_for_move);
+    int increase_degree_x = x - _last_degree_x;
+    int increase_degree_y = y - _last_degree_y;
+    uint32_t division_time = millis_for_move / SERIAL_EASE_DIVISION;
     _isMoving = true;
-    vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
+    //M5_LOGI("SCS: %d, %d, %d", increase_degree_x, increase_degree_y, division_time);
+    for (float f=0.0f; f<1.0f; f=f+(1.0f/SERIAL_EASE_DIVISION)) {
+      int x_pos = _last_degree_x + increase_degree_x * quadraticEaseInOut(f);
+      int y_pos = _last_degree_y + increase_degree_y * quadraticEaseInOut(f);
+      _sc.WritePos(AXIS_X + 1, convertSCS0009Pos(x_pos + _init_param.servo[AXIS_X].offset), division_time);
+      _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(y_pos + _init_param.servo[AXIS_Y].offset), division_time);
+      //vTaskDelay(division_time);
+    }
     _isMoving = false;
   } else {
     _servo_x.setEaseToD(x + _init_param.servo[AXIS_X].offset, millis_for_move);
@@ -118,6 +144,9 @@ void StackchanSERVO::moveXY(int x, int y, uint32_t millis_for_move) {
     synchronizeAllServosStartAndWaitForAllServosToStop();
     _isMoving = false;
   }
+  _last_degree_x = x;
+  _last_degree_y = y;
+  //M5_LOGI("SCS: %d, %d", _last_degree_x, _last_degree_y);
 }
 
 void StackchanSERVO::moveXY(servo_param_s servo_param_x, servo_param_s servo_param_y) {
@@ -138,6 +167,8 @@ void StackchanSERVO::moveXY(servo_param_s servo_param_x, servo_param_s servo_par
     synchronizeAllServosStartAndWaitForAllServosToStop();
     _isMoving = false;
   }
+  _last_degree_x = servo_param_x.degree;
+  _last_degree_y = servo_param_y.degree;
 }
 
 void StackchanSERVO::motion(Motion motion_number) {

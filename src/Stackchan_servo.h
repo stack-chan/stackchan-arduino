@@ -10,6 +10,8 @@
 #include <ESP32Servo.h>
 #include <ServoEasing.h>
 #include <SCServo.h>
+#include <M5Unified.h>
+#define SERIAL_EASE_DIVISION  5      // シリアルサーボのEasing分割数
 
 enum Motion {
     nomove,    // 動かない
@@ -54,6 +56,8 @@ class StackchanSERVO {
         void attachServos();
         stackchan_servo_initial_param_s _init_param;
         bool _isMoving;
+        int _last_degree_x;                              // 前回のX軸の角度
+        int _last_degree_y;                              // 前回のY軸の角度
     public:
         StackchanSERVO();
         ~StackchanSERVO();
