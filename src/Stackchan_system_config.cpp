@@ -65,7 +65,7 @@ void StackchanSystemConfig::setDefaultParameters() {
     _servo[AXIS_X].start_degree = 90;
     _servo[AXIS_Y].start_degree = 90;
     _extend_config_filename = "";
-    _extend_config_size = 0;
+    _extend_config_filesize = 0;
 }
 
 void StackchanSystemConfig::loadConfig(fs::FS& fs, const char *yaml_filename) {
@@ -85,8 +85,8 @@ void StackchanSystemConfig::loadConfig(fs::FS& fs, const char *yaml_filename) {
         // JSONファイルが見つからない場合はデフォルト値を利用します。
         setDefaultParameters();
     }
-    if (_extend_config_size >= 0) {
-        loadExtendConfig(fs, _extend_config_filename.c_str(), _extend_config_size);
+    if (_extend_config_filesize >= 0) {
+        loadExtendConfig(fs, _extend_config_filename.c_str(), _extend_config_filesize);
     }
     printAllParameters();
 }
@@ -118,8 +118,8 @@ void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
     _bluetooth.starting_state = doc["bluetooth"]["starting_state"];//.as<bool>();
     _bluetooth.start_volume = doc["bluetooth"]["start_volume"];
 
-    _wifi.ssid = doc["wifi"]["ssid"].as<String>();
-    _wifi.pass = doc["wifi"]["pass"].as<String>();
+    _wifi.ssid     = doc["wifi"]["ssid"].as<String>();
+    _wifi.password = doc["wifi"]["password"].as<String>();
 
     _auto_power_off_time = doc["auto_power_off_time"];
     _font_language_code = doc["balloon"]["font_language"].as<String>();
@@ -177,7 +177,7 @@ void StackchanSystemConfig::printAllParameters() {
     }
     M5_LOGI("mode_num:%d\n", _mode_num);
     M5_LOGI("WiFi SSID: %s\n", _wifi.ssid.c_str());
-    M5_LOGI("WiFi PASS: %s\n", _wifi.pass.c_str());
+    M5_LOGI("WiFi PASS: %s\n", _wifi.password.c_str());
     M5_LOGI("Bluetooth_device_name:%s\n", _bluetooth.device_name.c_str());
     M5_LOGI("Bluetooth_starting_state:%s\n", _bluetooth.starting_state ? "true":"false");
     M5_LOGI("Bluetooth_start_volume:%d\n", _bluetooth.start_volume);
