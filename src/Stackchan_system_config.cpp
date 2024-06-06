@@ -89,7 +89,7 @@ void StackchanSystemConfig::loadConfig(fs::FS& fs, const char *yaml_filename) {
         // JSONファイルが見つからない場合はデフォルト値を利用します。
         setDefaultParameters();
     }
-    if (_secret_config_filename > 0) {
+    if (_secret_config_filesize > 0) {
         loadSecretConfig(fs, _secret_config_filename.c_str(), _secret_config_filesize);
     }
     if (_extend_config_filesize > 0) {
@@ -108,13 +108,13 @@ void StackchanSystemConfig::loadSecretConfig(fs::FS& fs, const char* yaml_filena
             M5_LOGE("yaml file read error: %s\n", yaml_filename);
             M5_LOGE("error%s\n", err.c_str());
         }
-        if (_secret_info_show) {
+        if (_secret_config_show) {
             // 個人的な情報をログに表示する。
             M5_LOGI("=======================================================================================");
             M5_LOGI("下記の情報は公開してはいけません。(The following information must not be disclosed.)");
             M5_LOGI("");
             serializeJsonPretty(doc, Serial);
-            setSecretSettings(doc);
+            setSecretConfig(doc);
             M5_LOGI("");
             printSecretParameters();
             M5_LOGI("ここまでの情報は公開してはいけません。(No information should be disclosed so far.)");
@@ -174,7 +174,7 @@ void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
         _servo[AXIS_X].start_degree = 90;
         _servo[AXIS_Y].start_degree = 90;
     }
-    _secret_info_show       = doc["sercret_info_show"].as<bool>(); 
+    _secret_config_show     = doc["secret_config_show"].as<bool>(); 
     _secret_config_filename = doc["secret_config_filename"].as<String>();
     _secret_config_filesize = doc["secret_config_filesize"];
     _extend_config_filename = doc["extend_config_filename"].as<String>();
@@ -186,9 +186,9 @@ void StackchanSystemConfig::setSecretConfig(DynamicJsonDocument doc) {
     _secret_config.wifi_info.ssid     = doc["wifi"]["ssid"].as<String>();
     _secret_config.wifi_info.password = doc["wifi"]["password"].as<String>();
     
-    _secret_config.apikey.stt       = doc["apikey"]["stt"].as<String>();
-    _secret_config.apikey.aiservice = doc["apikey"]["aiservice"].as<String>();
-    _secret_config.apikey.tts       = doc["apikey"]["tts"].as<String>();
+    _secret_config.api_key.stt        = doc["apikey"]["stt"].as<String>();
+    _secret_config.api_key.ai_service = doc["apikey"]["aiservice"].as<String>();
+    _secret_config.api_key.tts        = doc["apikey"]["tts"].as<String>();
 
 }
 
@@ -216,8 +216,6 @@ void StackchanSystemConfig::printAllParameters() {
         M5_LOGI("move_max:%d", _servo_interval[i].move_max);
     }
     M5_LOGI("mode_num:%d", _mode_num);
-    M5_LOGI("WiFi SSID: %s", _wifi.ssid.c_str());
-    M5_LOGI("WiFi PASS: %s", _wifi.password.c_str());
     M5_LOGI("Bluetooth_device_name:%s", _bluetooth.device_name.c_str());
     M5_LOGI("Bluetooth_starting_state:%s", _bluetooth.starting_state ? "true":"false");
     M5_LOGI("Bluetooth_start_volume:%d", _bluetooth.start_volume);
@@ -235,6 +233,7 @@ void StackchanSystemConfig::printAllParameters() {
     M5_LOGI("SecretConfigFileSize: %d", _secret_config_filesize);
     M5_LOGI("ExtendConfigFileName: %s", _extend_config_filename.c_str());
     M5_LOGI("ExtendConfigFileSize: %d", _extend_config_filesize);
+    M5_LOGI("secret_config_show:%s", _secret_config_show ? "true":"false");
 
     printExtParameters();
 }
@@ -242,9 +241,9 @@ void StackchanSystemConfig::printAllParameters() {
 void StackchanSystemConfig::printSecretParameters() {
     M5_LOGI("wifi_ssid: %s", _secret_config.wifi_info.ssid.c_str());
     M5_LOGI("wifi_passws: %s", _secret_config.wifi_info.password.c_str());
-    M5_LOGI("apikey_stt: %s", _secret_config.apikey.stt.c_str());
-    M5_LOGI("apikey_aiservice: %s", _secret_config.apikey.aiservice.c_str());
-    M5_LOGI("apikey_tts: %s", _secret_config.apikey.tts.c_str());
+    M5_LOGI("apikey_stt: %s", _secret_config.api_key.stt.c_str());
+    M5_LOGI("apikey_aiservice: %s", _secret_config.api_key.ai_service.c_str());
+    M5_LOGI("apikey_tts: %s", _secret_config.api_key.tts.c_str());
 }
 void StackchanSystemConfig::loadExtendConfig(fs::FS& fs, const char* filename, uint32_t yaml_size) {  };
 void StackchanSystemConfig::setExtendSettings(DynamicJsonDocument doc) { if ( _extend_config_filename == "" ) return; };

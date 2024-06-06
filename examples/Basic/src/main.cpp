@@ -14,11 +14,8 @@ void setup() {
   delay(2000);
   config.loadConfig(SD, "/yaml/SC_BasicConfig.yaml");
 
-  config.getWiFiSetting();
-
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
 }
-

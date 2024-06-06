@@ -72,12 +72,12 @@ class StackchanSystemConfig {
         String _secret_config_filename;                      // 個人情報の設定値を定義したファイル
         uint32_t _secret_config_filesize;                    // 個人情報設定ファイルのサイズ
         secret_config_s _secret_config;                      // 個人情報の構造体
-        bool _secret_info_show;                              // 個人情報をログに出すかどうか
+        bool _secret_config_show;                            // 個人情報をログに出すかどうか
         void setDefaultParameters();
         void setSystemConfig(DynamicJsonDocument doc);
 
         void loadSecretConfig(fs::FS& fs, const char* yaml_filename, uint32_t yaml_size);
-        void setSecretSettings(DynamicJsonDocument doc);
+        void setSecretConfig(DynamicJsonDocument doc);
         void printSecretParameters(void);
     public:
         StackchanSystemConfig();
@@ -90,7 +90,7 @@ class StackchanSystemConfig {
         servo_interval_s* getServoInterval(AvatarMode avatar_mode) { return &_servo_interval[avatar_mode]; }
         bluetooth_s* getBluetoothSetting() { return &_bluetooth; }
         wifi_s* getWiFiSetting() { return &_secret_config.wifi_info; }
-        api_keys_s getAPISetting() { return &_secret_config.api_key; }
+        api_keys_s* getAPISetting() { return &_secret_config.api_key; }
         secret_config_s* getSecretSetting() { return &_secret_config; }
         String* getLyric(uint8_t no) { return &_lyrics[no]; }
         uint8_t getLyrics_num() { return _lyrics_num; }
