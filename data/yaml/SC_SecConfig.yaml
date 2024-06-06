@@ -1,0 +1,7 @@
+wifi:
+  ssid: "YOUR_WIFI_SSID"
+  password: "YOUR_WIFI_PASSWORD"
+apikey:
+    stt: "YOUR_APIKEY"       # ApiKey of SpeechToText Service
+    aiservice: "YOUR_APIKEY" # ApiKey of AIService
+    tts: "YOUR_APIKEY"       # ApiKey of TextToSpeech Service
