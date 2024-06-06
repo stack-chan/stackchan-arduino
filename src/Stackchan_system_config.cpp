@@ -64,8 +64,12 @@ void StackchanSystemConfig::setDefaultParameters() {
     _servo_type = 0;
     _servo[AXIS_X].start_degree = 90;
     _servo[AXIS_Y].start_degree = 90;
+    _secret_config_show = false;
     _extend_config_filename = "";
     _extend_config_filesize = 0;
+    _secret_config_filename = "";
+    _secret_config_filesize = 0;
+
 }
 
 void StackchanSystemConfig::loadConfig(fs::FS& fs, const char *yaml_filename) {
@@ -85,10 +89,38 @@ void StackchanSystemConfig::loadConfig(fs::FS& fs, const char *yaml_filename) {
         // JSONファイルが見つからない場合はデフォルト値を利用します。
         setDefaultParameters();
     }
-    if (_extend_config_filesize >= 0) {
+    if (_secret_config_filename > 0) {
+        loadSecretConfig(fs, _secret_config_filename.c_str(), _secret_config_filesize);
+    }
+    if (_extend_config_filesize > 0) {
         loadExtendConfig(fs, _extend_config_filename.c_str(), _extend_config_filesize);
     }
     printAllParameters();
+}
+
+void StackchanSystemConfig::loadSecretConfig(fs::FS& fs, const char* yaml_filename, uint32_t yaml_size) {
+    M5_LOGI("----- StackchanSecretConfig::loadConfig:%s\n", yaml_filename);
+    File file = fs.open(yaml_filename);
+    if (file) {
+        DynamicJsonDocument doc(yaml_size);
+        auto err = deserializeYml( doc, file);
+        if (err) {
+            M5_LOGE("yaml file read error: %s\n", yaml_filename);
+            M5_LOGE("error%s\n", err.c_str());
+        }
+        if (_secret_info_show) {
+            // 個人的な情報をログに表示する。
+            M5_LOGI("=======================================================================================");
+            M5_LOGI("下記の情報は公開してはいけません。(The following information must not be disclosed.)");
+            M5_LOGI("");
+            serializeJsonPretty(doc, Serial);
+            setSecretSettings(doc);
+            M5_LOGI("");
+            printSecretParameters();
+            M5_LOGI("ここまでの情報は公開してはいけません。(No information should be disclosed so far.)");
+            M5_LOGI("=======================================================================================");
+        }
+    }
 }
 
 void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
@@ -118,9 +150,6 @@ void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
     _bluetooth.starting_state = doc["bluetooth"]["starting_state"];//.as<bool>();
     _bluetooth.start_volume = doc["bluetooth"]["start_volume"];
 
-    _wifi.ssid     = doc["wifi"]["ssid"].as<String>();
-    _wifi.password = doc["wifi"]["password"].as<String>();
-
     _auto_power_off_time = doc["auto_power_off_time"];
     _font_language_code = doc["balloon"]["font_language"].as<String>();
     
@@ -145,10 +174,21 @@ void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
         _servo[AXIS_X].start_degree = 90;
         _servo[AXIS_Y].start_degree = 90;
     }
-    
+    _secret_info_show       = doc["sercret_info_show"].as<bool>(); 
+    _secret_config_filename = doc["secret_config_filename"].as<String>();
+    _secret_config_filesize = doc["secret_config_filesize"];
     _extend_config_filename = doc["extend_config_filename"].as<String>();
     _extend_config_filesize = doc["extend_config_filesize"];
+}
 
+void StackchanSystemConfig::setSecretConfig(DynamicJsonDocument doc) {
+
+    _secret_config.wifi_info.ssid     = doc["wifi"]["ssid"].as<String>();
+    _secret_config.wifi_info.password = doc["wifi"]["password"].as<String>();
+    
+    _secret_config.apikey.stt       = doc["apikey"]["stt"].as<String>();
+    _secret_config.apikey.aiservice = doc["apikey"]["aiservice"].as<String>();
+    _secret_config.apikey.tts       = doc["apikey"]["tts"].as<String>();
 
 }
 
@@ -164,39 +204,48 @@ const lgfx::IFont* StackchanSystemConfig::getFont() {
 } 
 
 void StackchanSystemConfig::printAllParameters() {
-    M5_LOGI("servo:pin_x:%d\n", _servo[AXIS_X].pin);
-    M5_LOGI("servo:pin_y:%d\n", _servo[AXIS_Y].pin);
-    M5_LOGI("servo:offset_x:%d\n", _servo[AXIS_X].offset);
-    M5_LOGI("servo:offset_y:%d\n", _servo[AXIS_Y].offset);
+    M5_LOGI("servo:pin_x:%d", _servo[AXIS_X].pin);
+    M5_LOGI("servo:pin_y:%d", _servo[AXIS_Y].pin);
+    M5_LOGI("servo:offset_x:%d", _servo[AXIS_X].offset);
+    M5_LOGI("servo:offset_y:%d", _servo[AXIS_Y].offset);
     for (int i=0;i<_mode_num;i++) {
-        M5_LOGI("mode:%s\n", _servo_interval[i].mode_name);
-        M5_LOGI("interval_min:%d\n", _servo_interval[i].interval_min);
-        M5_LOGI("interval_max:%d\n", _servo_interval[i].interval_max);
-        M5_LOGI("move_min:%d\n", _servo_interval[i].move_min);
-        M5_LOGI("move_max:%d\n", _servo_interval[i].move_max);
+        M5_LOGI("mode:%s", _servo_interval[i].mode_name);
+        M5_LOGI("interval_min:%d", _servo_interval[i].interval_min);
+        M5_LOGI("interval_max:%d", _servo_interval[i].interval_max);
+        M5_LOGI("move_min:%d", _servo_interval[i].move_min);
+        M5_LOGI("move_max:%d", _servo_interval[i].move_max);
     }
-    M5_LOGI("mode_num:%d\n", _mode_num);
-    M5_LOGI("WiFi SSID: %s\n", _wifi.ssid.c_str());
-    M5_LOGI("WiFi PASS: %s\n", _wifi.password.c_str());
-    M5_LOGI("Bluetooth_device_name:%s\n", _bluetooth.device_name.c_str());
-    M5_LOGI("Bluetooth_starting_state:%s\n", _bluetooth.starting_state ? "true":"false");
-    M5_LOGI("Bluetooth_start_volume:%d\n", _bluetooth.start_volume);
-    M5_LOGI("auto_power_off_time:%d\n", _auto_power_off_time);
-    M5_LOGI("font_language:%s\n", _font_language_code);
+    M5_LOGI("mode_num:%d", _mode_num);
+    M5_LOGI("WiFi SSID: %s", _wifi.ssid.c_str());
+    M5_LOGI("WiFi PASS: %s", _wifi.password.c_str());
+    M5_LOGI("Bluetooth_device_name:%s", _bluetooth.device_name.c_str());
+    M5_LOGI("Bluetooth_starting_state:%s", _bluetooth.starting_state ? "true":"false");
+    M5_LOGI("Bluetooth_start_volume:%d", _bluetooth.start_volume);
+    M5_LOGI("auto_power_off_time:%d", _auto_power_off_time);
+    M5_LOGI("font_language:%s", _font_language_code);
     for (int i=0;i<_lyrics_num;i++) {
-        M5_LOGI("lyrics:%d:%s\n", i, _lyrics[i].c_str());
+        M5_LOGI("lyrics:%d:%s", i, _lyrics[i].c_str());
     }
-    M5_LOGI("led_lr:%d\n", _led_lr);
-    M5_LOGI("led_pin:%d\n", _led_pin);
-    M5_LOGI("use takao_base:%s\n", _takao_base ? "true":"false");
-    M5_LOGI("ServoTypeStr:%s\n", _servo_type_str.c_str());
-    M5_LOGI("ServoType: %d\n", _servo_type);
-    M5_LOGI("ExtendConfigFileName: %s\n", _extend_config_filename.c_str());
-    M5_LOGI("ExtendConfigFileSize: %d\n", _extend_config_filesize);
+    M5_LOGI("led_lr:%d", _led_lr);
+    M5_LOGI("led_pin:%d", _led_pin);
+    M5_LOGI("use takao_base:%s", _takao_base ? "true":"false");
+    M5_LOGI("ServoTypeStr:%s", _servo_type_str.c_str());
+    M5_LOGI("ServoType: %d", _servo_type);
+    M5_LOGI("SecretConfigFileName: %s", _secret_config_filename.c_str());
+    M5_LOGI("SecretConfigFileSize: %d", _secret_config_filesize);
+    M5_LOGI("ExtendConfigFileName: %s", _extend_config_filename.c_str());
+    M5_LOGI("ExtendConfigFileSize: %d", _extend_config_filesize);
 
     printExtParameters();
 }
 
+void StackchanSystemConfig::printSecretParameters() {
+    M5_LOGI("wifi_ssid: %s", _secret_config.wifi_info.ssid.c_str());
+    M5_LOGI("wifi_passws: %s", _secret_config.wifi_info.password.c_str());
+    M5_LOGI("apikey_stt: %s", _secret_config.apikey.stt.c_str());
+    M5_LOGI("apikey_aiservice: %s", _secret_config.apikey.aiservice.c_str());
+    M5_LOGI("apikey_tts: %s", _secret_config.apikey.tts.c_str());
+}
 void StackchanSystemConfig::loadExtendConfig(fs::FS& fs, const char* filename, uint32_t yaml_size) {  };
 void StackchanSystemConfig::setExtendSettings(DynamicJsonDocument doc) { if ( _extend_config_filename == "" ) return; };
 void StackchanSystemConfig::printExtParameters(void) {};

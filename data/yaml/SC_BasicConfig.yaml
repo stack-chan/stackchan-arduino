@@ -46,3 +46,4 @@ extend_config_filename: "/yaml/SC_ExConfig.yaml"     # Configuration file for th
 extend_config_filesize: 2048                         # Buffer size for feature extensions
 secret_config_filename: "/yaml/SC_SecConfig.yaml"    # Configuration file for the File for personal information.
 secret_config_filesize: 2048                         # Buffer size for personal information.
+secret_info_show: true                               # Whether personal information is output to the log or not.
