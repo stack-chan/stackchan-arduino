@@ -82,7 +82,7 @@ class StackchanSystemConfig {
     public:
         StackchanSystemConfig();
         ~StackchanSystemConfig();
-        void loadConfig(fs::FS& fs, const char *yaml_filename);
+        void loadConfig(fs::FS& fs, const char *app_yaml_filename, uint32_t app_yaml_filesize=2048, const char* basic_yaml_filename = "/yaml/SC_BasicConfig.yaml", uint32_t basic_yaml_filesize=2048);
 
         void printAllParameters();
 

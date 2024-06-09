@@ -72,28 +72,29 @@ void StackchanSystemConfig::setDefaultParameters() {
 
 }
 
-void StackchanSystemConfig::loadConfig(fs::FS& fs, const char *yaml_filename) {
-    M5_LOGI("----- StackchanSystemConfig::loadConfig:%s\n", yaml_filename);
-    fs::File file = fs.open(yaml_filename);
-    DynamicJsonDocument doc(2048);
+void StackchanSystemConfig::loadConfig(fs::FS& fs, const char *app_yaml_filename, uint32_t app_yaml_filesize, const char* basic_yaml_filename, uint32_t basic_yaml_filesize) {
+    M5_LOGI("----- StackchanSystemConfig::loadConfig:%s\n", basic_yaml_filename);
+    M5_LOGI("----- app_yaml_filename:%s\n", app_yaml_filename);
+    fs::File file = fs.open(basic_yaml_filename);
+    DynamicJsonDocument doc(basic_yaml_filesize);
     if (file) {
         DeserializationError err = deserializeYml(doc, file);
         if (err) {
-            M5_LOGI("yaml file read error: %s\n", yaml_filename);
+            M5_LOGI("yaml file read error: %s\n", basic_yaml_filename);
             M5_LOGI("error%s\n", err.c_str());
         }
         serializeJsonPretty(doc, Serial);
         setSystemConfig(doc);
     } else {
         Serial.println("ConfigFile Not Found. Default Parameters used.");
-        // JSONファイルが見つからない場合はデフォルト値を利用します。
+        // YAMLファイルが見つからない場合はデフォルト値を利用します。
         setDefaultParameters();
     }
     if (_secret_config_filesize > 0) {
         loadSecretConfig(fs, _secret_config_filename.c_str(), _secret_config_filesize);
     }
     if (_extend_config_filesize > 0) {
-        loadExtendConfig(fs, _extend_config_filename.c_str(), _extend_config_filesize);
+        loadExtendConfig(fs, app_yaml_filename, app_yaml_filesize);
     }
     printAllParameters();
 }
