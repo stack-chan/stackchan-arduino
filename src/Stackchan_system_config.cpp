@@ -65,14 +65,12 @@ void StackchanSystemConfig::setDefaultParameters() {
     _servo[AXIS_X].start_degree = 90;
     _servo[AXIS_Y].start_degree = 90;
     _secret_config_show = false;
-    _extend_config_filename = "";
-    _extend_config_filesize = 0;
-    _secret_config_filename = "";
-    _secret_config_filesize = 0;
 
 }
 
-void StackchanSystemConfig::loadConfig(fs::FS& fs, const char *app_yaml_filename, uint32_t app_yaml_filesize, const char* basic_yaml_filename, uint32_t basic_yaml_filesize) {
+void StackchanSystemConfig::loadConfig(fs::FS& fs, const char *app_yaml_filename, uint32_t app_yaml_filesize,
+                                        const char* secret_yaml_filename, uint32_t secret_yaml_filesize,
+                                        const char* basic_yaml_filename, uint32_t basic_yaml_filesize) {
     M5_LOGI("----- StackchanSystemConfig::loadConfig:%s\n", basic_yaml_filename);
     M5_LOGI("----- app_yaml_filename:%s\n", app_yaml_filename);
     fs::File file = fs.open(basic_yaml_filename);
@@ -89,11 +87,12 @@ void StackchanSystemConfig::loadConfig(fs::FS& fs, const char *app_yaml_filename
         Serial.println("ConfigFile Not Found. Default Parameters used.");
         // YAMLファイルが見つからない場合はデフォルト値を利用します。
         setDefaultParameters();
+        basicConfigNotFoundCallback();
     }
-    if (_secret_config_filesize > 0) {
-        loadSecretConfig(fs, _secret_config_filename.c_str(), _secret_config_filesize);
+    if (secret_yaml_filesize > 0) {
+        loadSecretConfig(fs, secret_yaml_filename, secret_yaml_filesize);
     }
-    if (_extend_config_filesize > 0) {
+    if (app_yaml_filename > 0) {
         loadExtendConfig(fs, app_yaml_filename, app_yaml_filesize);
     }
     printAllParameters();
@@ -109,18 +108,25 @@ void StackchanSystemConfig::loadSecretConfig(fs::FS& fs, const char* yaml_filena
             M5_LOGE("yaml file read error: %s\n", yaml_filename);
             M5_LOGE("error%s\n", err.c_str());
         }
+        else{
+            setSecretConfig(doc);
+        }
+
         if (_secret_config_show) {
             // 個人的な情報をログに表示する。
             M5_LOGI("=======================================================================================");
             M5_LOGI("下記の情報は公開してはいけません。(The following information must not be disclosed.)");
             M5_LOGI("");
             serializeJsonPretty(doc, Serial);
-            setSecretConfig(doc);
             M5_LOGI("");
             printSecretParameters();
+            M5_LOGI("");
             M5_LOGI("ここまでの情報は公開してはいけません。(No information should be disclosed so far.)");
             M5_LOGI("=======================================================================================");
         }
+    }
+    else{
+        secretConfigNotFoundCallback();
     }
 }
 
@@ -176,10 +182,6 @@ void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
         _servo[AXIS_Y].start_degree = 90;
     }
     _secret_config_show     = doc["secret_config_show"].as<bool>(); 
-    _secret_config_filename = doc["secret_config_filename"].as<String>();
-    _secret_config_filesize = doc["secret_config_filesize"];
-    _extend_config_filename = doc["extend_config_filename"].as<String>();
-    _extend_config_filesize = doc["extend_config_filesize"];
 }
 
 void StackchanSystemConfig::setSecretConfig(DynamicJsonDocument doc) {
@@ -230,10 +232,6 @@ void StackchanSystemConfig::printAllParameters() {
     M5_LOGI("use takao_base:%s", _takao_base ? "true":"false");
     M5_LOGI("ServoTypeStr:%s", _servo_type_str.c_str());
     M5_LOGI("ServoType: %d", _servo_type);
-    M5_LOGI("SecretConfigFileName: %s", _secret_config_filename.c_str());
-    M5_LOGI("SecretConfigFileSize: %d", _secret_config_filesize);
-    M5_LOGI("ExtendConfigFileName: %s", _extend_config_filename.c_str());
-    M5_LOGI("ExtendConfigFileSize: %d", _extend_config_filesize);
     M5_LOGI("secret_config_show:%s", _secret_config_show ? "true":"false");
 
     printExtParameters();
@@ -247,6 +245,10 @@ void StackchanSystemConfig::printSecretParameters() {
     M5_LOGI("apikey_tts: %s", _secret_config.api_key.tts.c_str());
 }
 void StackchanSystemConfig::loadExtendConfig(fs::FS& fs, const char* filename, uint32_t yaml_size) {  };
-void StackchanSystemConfig::setExtendSettings(DynamicJsonDocument doc) { if ( _extend_config_filename == "" ) return; };
+void StackchanSystemConfig::setExtendSettings(DynamicJsonDocument doc) {  };
 void StackchanSystemConfig::printExtParameters(void) {};
+
+void StackchanSystemConfig::basicConfigNotFoundCallback(void) {};
+void StackchanSystemConfig::secretConfigNotFoundCallback(void) {};
+
 #endif

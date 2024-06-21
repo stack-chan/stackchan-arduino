@@ -67,10 +67,6 @@ class StackchanSystemConfig {
         bool _takao_base;                                    // Takao_Baseを使い後ろから給電する場合にtrue
         String _servo_type_str;
         uint8_t _servo_type;                                 // サーボの種類 (0: PWMサーボ, 1: Feetech SCS0009)
-        String _extend_config_filename;                      // 使用するアプリ側で拡張した設定が必要な場合に使用
-        uint32_t _extend_config_filesize;                    // 拡張設定ファイルのサイズ
-        String _secret_config_filename;                      // 個人情報の設定値を定義したファイル
-        uint32_t _secret_config_filesize;                    // 個人情報設定ファイルのサイズ
         secret_config_s _secret_config;                      // 個人情報の構造体
         bool _secret_config_show;                            // 個人情報をログに出すかどうか
         void setDefaultParameters();
@@ -82,7 +78,9 @@ class StackchanSystemConfig {
     public:
         StackchanSystemConfig();
         ~StackchanSystemConfig();
-        void loadConfig(fs::FS& fs, const char *app_yaml_filename, uint32_t app_yaml_filesize=2048, const char* basic_yaml_filename = "/yaml/SC_BasicConfig.yaml", uint32_t basic_yaml_filesize=2048);
+        void loadConfig(fs::FS& fs, const char *app_yaml_filename, uint32_t app_yaml_filesize=2048,
+                        const char* secret_yaml_filename = "/yaml/SC_SecConfig.yaml", uint32_t secret_yaml_filesize=2048,
+                        const char* basic_yaml_filename = "/yaml/SC_BasicConfig.yaml", uint32_t basic_yaml_filesize=2048);
 
         void printAllParameters();
 
@@ -103,6 +101,9 @@ class StackchanSystemConfig {
         virtual void loadExtendConfig(fs::FS& fs, const char* yaml_filename, uint32_t yaml_size);
         virtual void setExtendSettings(DynamicJsonDocument doc);
         virtual void printExtParameters(void);
+
+        virtual void basicConfigNotFoundCallback(void);
+        virtual void secretConfigNotFoundCallback(void);
 
 };
 
