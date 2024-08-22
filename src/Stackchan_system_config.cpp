@@ -61,7 +61,7 @@ void StackchanSystemConfig::setDefaultParameters() {
     _led_lr = 0;
     _led_pin = -1;
     _takao_base = false;
-    _servo_type = 0;
+    _servo_type = ServoType::PWM;
     _servo[AXIS_X].start_degree = 90;
     _servo[AXIS_Y].start_degree = 90;
     _secret_config_show = false;
@@ -173,11 +173,16 @@ void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
     _servo_type_str = doc["servo_type"].as<String>();
     if (_servo_type_str.indexOf("SCS") != -1) {
         // SCS0009
-        _servo_type = 1;
+        _servo_type = ServoType::SCS;
         _servo[AXIS_X].start_degree = 150;
         _servo[AXIS_Y].start_degree = 150;
-    } else {
-        _servo_type = 0; // PWMサーボ
+    } else if (_servo_type_str.indexOf("DYN_XL330") != -1) {
+        // Dynamixel XL330
+        _servo_type = ServoType::DYN_XL330;
+        _servo[AXIS_X].start_degree = 180;
+        _servo[AXIS_Y].start_degree = 180;
+    } else  {
+        _servo_type = ServoType::PWM; // PWMサーボ
         _servo[AXIS_X].start_degree = 90;
         _servo[AXIS_Y].start_degree = 90;
     }
@@ -211,6 +216,10 @@ void StackchanSystemConfig::printAllParameters() {
     M5_LOGI("servo:pin_y:%d", _servo[AXIS_Y].pin);
     M5_LOGI("servo:offset_x:%d", _servo[AXIS_X].offset);
     M5_LOGI("servo:offset_y:%d", _servo[AXIS_Y].offset);
+    M5_LOGI("servo.lower_limit_x:%d", _servo[AXIS_X].lower_limit);
+    M5_LOGI("servo.lower_limit_y:%d", _servo[AXIS_Y].lower_limit);
+    M5_LOGI("servo.upper_limit_x:%d", _servo[AXIS_X].upper_limit);
+    M5_LOGI("servo.upper_limit_y:%d", _servo[AXIS_Y].upper_limit);
     for (int i=0;i<_mode_num;i++) {
         M5_LOGI("mode:%s", _servo_interval[i].mode_name);
         M5_LOGI("interval_min:%d", _servo_interval[i].interval_min);

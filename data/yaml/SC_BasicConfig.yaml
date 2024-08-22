@@ -41,7 +41,7 @@ balloon:
 led_lr: 0 # 0:stereo, 1:left_only, 2:right_only
 led_pin: 15 # GoBottom1:15 GoBottom2:25
 takao_base: false # Whether to use takaobase to feed power from the rear connector.(Stack-chan_Takao_Base  https://ssci.to/8905)
-servo_type: "PWM" # "PWM": SG90PWMServo, "SCS": Feetech SCS0009
+servo_type: "PWM" # "PWM": SG90PWMServo, "SCS": Feetech SCS0009 "DYN_XL330": Dynamixel XL330
 extend_config_filename: "/yaml/SC_ExConfig.yaml"     # Configuration file for the application.
 extend_config_filesize: 2048                         # Buffer size for feature extensions
 secret_config_filename: "/yaml/SC_SecConfig.yaml"    # Configuration file for the File for personal information.

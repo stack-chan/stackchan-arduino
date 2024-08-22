@@ -11,6 +11,10 @@
 #include <ServoEasing.h>
 #include <SCServo.h>
 #include <M5Unified.h>
+#include <Dynamixel2Arduino.h>
+
+using namespace ControlTableItem;
+
 #define SERIAL_EASE_DIVISION  5      // シリアルサーボのEasing分割数
 
 enum Motion {
@@ -28,8 +32,9 @@ enum ServoAxis {
 };
 
 enum ServoType {
-    PWM,
-    SCS
+    PWM,             // SG90 PWM
+    SCS,             // Feetech SCS0009
+    DYN_XL330        // Dynamixel XL330
 };
 
 typedef struct ServoParam {
@@ -47,10 +52,14 @@ typedef struct  StackchanServo{
     servo_param_s servo[2];
 } stackchan_servo_initial_param_s;
 
+
+const float DXL_PROTOCOL_VERSION = 2.0f;
+
 class StackchanSERVO {
     protected:
         ServoType _servo_type;
         SCSCL _sc;
+        Dynamixel2Arduino _dxl;
         ServoEasing _servo_x;
         ServoEasing _servo_y;
         void attachServos();
@@ -73,6 +82,6 @@ class StackchanSERVO {
         void moveXY(servo_param_s servo_param_x, servo_param_s servo_param_y);
         void motion(Motion motion_no);
         bool isMoving() { return _isMoving; }
+        long calcVelocity(ServoAxis axis_id, int16_t degree, uint32_t millis_for_move);
 };
-
 #endif // _STACKCHAN_SERVO_H_
