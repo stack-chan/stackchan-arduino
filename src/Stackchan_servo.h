@@ -82,6 +82,5 @@ class StackchanSERVO {
         void moveXY(servo_param_s servo_param_x, servo_param_s servo_param_y);
         void motion(Motion motion_no);
         bool isMoving() { return _isMoving; }
-        long calcVelocity(ServoAxis axis_id, int16_t degree, uint32_t millis_for_move);
 };
 #endif // _STACKCHAN_SERVO_H_

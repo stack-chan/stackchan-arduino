@@ -37,7 +37,7 @@
         "version": "^6"
       },
       {
-        "owner": "roboies-git",
+        "owner": "robotis-git",
         "name": "Dynamixel2Arduino",
         "version": "^0.7.0"
       },
@@ -47,8 +47,8 @@
         "version": "1.4.2"
       },
       {
-        "name": "SCSServo",
-        "version": "https://github.com/mongonta0716/SCSServo.git"
+        "name": "SCServo",
+        "version": "https://github.com/mongonta0716/SCServo.git"
       }
     ],
     "version": "0.0.1",
