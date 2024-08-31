@@ -11,6 +11,8 @@ StackchanSystemConfig::~StackchanSystemConfig() {
 }
 
 void StackchanSystemConfig::setDefaultParameters() {
+    // 設定ファイルが存在しないときはデフォルトパラメータを使用します。
+    // PWM サーボでPort.Aを想定しています。
     switch(M5.getBoard()) {
         case m5::board_t::board_M5StackCore2:
             _servo[AXIS_X].pin = 33;
@@ -61,7 +63,7 @@ void StackchanSystemConfig::setDefaultParameters() {
     _led_lr = 0;
     _led_pin = -1;
     _takao_base = false;
-    _servo_type = 0;
+    _servo_type = ServoType::PWM;
     _servo[AXIS_X].start_degree = 90;
     _servo[AXIS_Y].start_degree = 90;
     _secret_config_show = false;
@@ -92,7 +94,7 @@ void StackchanSystemConfig::loadConfig(fs::FS& fs, const char *app_yaml_filename
     if (secret_yaml_filesize > 0) {
         loadSecretConfig(fs, secret_yaml_filename, secret_yaml_filesize);
     }
-    if (app_yaml_filename > 0) {
+    if (app_yaml_filesize > 0) {
         loadExtendConfig(fs, app_yaml_filename, app_yaml_filesize);
     }
     printAllParameters();
@@ -138,6 +140,9 @@ void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
     _servo[AXIS_X].offset = servo["offset"]["x"];
     _servo[AXIS_Y].offset = servo["offset"]["y"];
 
+    _servo[AXIS_X].start_degree = servo["center"]["x"];
+    _servo[AXIS_Y].start_degree = servo["center"]["y"];
+
     _servo[AXIS_X].lower_limit = servo["lower_limit"]["x"];
     _servo[AXIS_X].upper_limit = servo["upper_limit"]["x"];
     _servo[AXIS_Y].lower_limit = servo["lower_limit"]["y"];
@@ -173,13 +178,13 @@ void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
     _servo_type_str = doc["servo_type"].as<String>();
     if (_servo_type_str.indexOf("SCS") != -1) {
         // SCS0009
-        _servo_type = 1;
-        _servo[AXIS_X].start_degree = 150;
-        _servo[AXIS_Y].start_degree = 150;
-    } else {
-        _servo_type = 0; // PWMサーボ
-        _servo[AXIS_X].start_degree = 90;
-        _servo[AXIS_Y].start_degree = 90;
+        _servo_type = ServoType::SCS;
+    } else if (_servo_type_str.indexOf("DYN_XL330") != -1) {
+        // Dynamixel XL330
+        _servo_type = ServoType::DYN_XL330;
+    } else  {
+        // PWMサーボ
+        _servo_type = ServoType::PWM;
     }
     _secret_config_show     = doc["secret_config_show"].as<bool>(); 
 }
@@ -211,6 +216,12 @@ void StackchanSystemConfig::printAllParameters() {
     M5_LOGI("servo:pin_y:%d", _servo[AXIS_Y].pin);
     M5_LOGI("servo:offset_x:%d", _servo[AXIS_X].offset);
     M5_LOGI("servo:offset_y:%d", _servo[AXIS_Y].offset);
+    M5_LOGI("servo.start_degree_x:%d", _servo[AXIS_X].start_degree);
+    M5_LOGI("servo.start_degree_y:%d", _servo[AXIS_Y].start_degree);
+    M5_LOGI("servo.lower_limit_x:%d", _servo[AXIS_X].lower_limit);
+    M5_LOGI("servo.lower_limit_y:%d", _servo[AXIS_Y].lower_limit);
+    M5_LOGI("servo.upper_limit_x:%d", _servo[AXIS_X].upper_limit);
+    M5_LOGI("servo.upper_limit_y:%d", _servo[AXIS_Y].upper_limit);
     for (int i=0;i<_mode_num;i++) {
         M5_LOGI("mode:%s", _servo_interval[i].mode_name);
         M5_LOGI("interval_min:%d", _servo_interval[i].interval_min);

@@ -3,9 +3,17 @@
 
 #include <ServoEasing.hpp>
 
-long convertSCS0009Pos(int16_t degree) {
+static long convertSCS0009Pos(int16_t degree) {
   //Serial.printf("Degree: %d\n", degree);
   return map(degree, 0, 300, 1023, 0);
+}
+
+static long convertDYNIXELXL330(int16_t degree) {
+  M5_LOGI("Degree: %d\n", degree);
+  
+  long ret =  map(degree, 0, 360, 0, 4095);
+  M5_LOGI("Position: %d\n", ret);
+  return ret;
 }
 
 // シリアルサーボ用のEasing関数
@@ -21,13 +29,14 @@ float quadraticEaseInOut(float p) {
 	}
 }
 
+
 StackchanSERVO::StackchanSERVO() {}
 
 StackchanSERVO::~StackchanSERVO() {}
 
 
 void StackchanSERVO::attachServos() {
-  if (_servo_type == SCS) {
+  if (_servo_type == ServoType::SCS) {
     // SCS0009
     Serial2.begin(1000000, SERIAL_8N1, _init_param.servo[AXIS_X].pin, _init_param.servo[AXIS_Y].pin);
     _sc.pSerial = &Serial2;
@@ -35,6 +44,30 @@ void StackchanSERVO::attachServos() {
     _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(_init_param.servo[AXIS_Y].start_degree + _init_param.servo[AXIS_Y].offset), 1000);
     vTaskDelay(1000/portTICK_PERIOD_MS);
 
+  } else if (_servo_type == ServoType::DYN_XL330) {
+    M5_LOGI("DYN_XL330");
+    Serial2.begin(1000000, SERIAL_8N1, _init_param.servo[AXIS_X].pin, _init_param.servo[AXIS_Y].pin);
+    _dxl = Dynamixel2Arduino(Serial2);
+    _dxl.begin(1000000);
+    _dxl.setPortProtocolVersion(DXL_PROTOCOL_VERSION);
+    _dxl.ping(AXIS_X + 1);
+    _dxl.ping(AXIS_Y + 1);
+    _dxl.setOperatingMode(AXIS_X + 1, OP_POSITION);
+    _dxl.setOperatingMode(AXIS_Y + 1, OP_POSITION);
+    _dxl.writeControlTableItem(DRIVE_MODE, AXIS_X + 1, 4);  // Velocityのパラメータを移動時間(msec)で指定するモードに変更
+    _dxl.writeControlTableItem(DRIVE_MODE, AXIS_Y + 1, 4);  // Velocityのパラメータを移動時間(msec)で指定するモードに変更
+    _dxl.torqueOn(AXIS_X + 1);
+    delay(10); // ここでWaitを入れないと、Y(tilt)サーボが動かない場合がある。
+    _dxl.torqueOn(AXIS_Y + 1);
+    delay(100);
+    _dxl.writeControlTableItem(PROFILE_VELOCITY, AXIS_X + 1, 1000);
+    _dxl.writeControlTableItem(PROFILE_VELOCITY, AXIS_Y + 1, 1000);
+    delay(100);
+    _dxl.setGoalPosition(AXIS_X + 1, 2048);
+    _dxl.setGoalPosition(AXIS_Y + 1, 3073);
+    //_dxl.torqueOff(AXIS_X + 1);
+    //_dxl.torqueOff(AXIS_Y + 1);
+    
   } else {
     // SG90 PWM
     if (_servo_x.attach(_init_param.servo[AXIS_X].pin, 
@@ -47,7 +80,7 @@ void StackchanSERVO::attachServos() {
                         _init_param.servo[AXIS_Y].start_degree + _init_param.servo[AXIS_Y].offset,
                         DEFAULT_MICROSECONDS_FOR_0_DEGREE,
                         DEFAULT_MICROSECONDS_FOR_180_DEGREE)) {
-      Serial.print("Error attaching servo x");
+      Serial.print("Error attaching servo y");
     }
 
     _servo_x.setEasingType(EASE_QUADRATIC_IN_OUT);
@@ -81,6 +114,14 @@ void StackchanSERVO::moveX(int x, uint32_t millis_for_move) {
     _isMoving = true;
     vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
     _isMoving = false;
+  } else if (_servo_type == ServoType::DYN_XL330) {
+    _dxl.writeControlTableItem(PROFILE_VELOCITY, AXIS_X + 1, millis_for_move);
+    vTaskDelay(10/portTICK_PERIOD_MS);
+    _dxl.setGoalPosition(AXIS_X + 1, convertDYNIXELXL330(x + _init_param.servo[AXIS_X].offset));
+    vTaskDelay(10/portTICK_PERIOD_MS);
+    _isMoving = true;
+    vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
+    _isMoving = false;
   } else {
     if (millis_for_move == 0) {
       _servo_x.easeTo(x + _init_param.servo[AXIS_X].offset);
@@ -100,8 +141,16 @@ void StackchanSERVO::moveX(servo_param_s servo_param_x) {
 }
 
 void StackchanSERVO::moveY(int y, uint32_t millis_for_move) {
-  if (_servo_type == SCS) {
+  if (_servo_type == ServoType::SCS) {
     _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(y + _init_param.servo[AXIS_Y].offset), millis_for_move);
+    _isMoving = true;
+    vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
+    _isMoving = false;
+  } else if (_servo_type == ServoType::DYN_XL330) {
+    _dxl.writeControlTableItem(PROFILE_VELOCITY, AXIS_Y + 1, millis_for_move);
+    vTaskDelay(10/portTICK_PERIOD_MS);
+    _dxl.setGoalPosition(AXIS_Y + 1, convertDYNIXELXL330(y + _init_param.servo[AXIS_Y].offset)); // RT版に合わせて+180°しています。
+    vTaskDelay(10/portTICK_PERIOD_MS);
     _isMoving = true;
     vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
     _isMoving = false;
@@ -123,7 +172,7 @@ void StackchanSERVO::moveY(servo_param_s servo_param_y) {
   moveY(servo_param_y.degree, servo_param_y.millis_for_move);
 }
 void StackchanSERVO::moveXY(int x, int y, uint32_t millis_for_move) {
-  if (_servo_type == SCS) {
+  if (_servo_type == ServoType::SCS) {
     int increase_degree_x = x - _last_degree_x;
     int increase_degree_y = y - _last_degree_y;
     uint32_t division_time = millis_for_move / SERIAL_EASE_DIVISION;
@@ -136,6 +185,11 @@ void StackchanSERVO::moveXY(int x, int y, uint32_t millis_for_move) {
       _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(y_pos + _init_param.servo[AXIS_Y].offset), division_time);
       //vTaskDelay(division_time);
     }
+    _isMoving = false;
+  } else if (_servo_type == ServoType::DYN_XL330) {
+    _isMoving = true;
+    _dxl.setGoalPosition(AXIS_X + 1, convertDYNIXELXL330(x + _init_param.servo[AXIS_X].offset)); 
+    _dxl.setGoalPosition(AXIS_Y + 1, convertDYNIXELXL330(y + _init_param.servo[AXIS_Y].offset)); // RT版に合わせて+180°しています。
     _isMoving = false;
   } else {
     _servo_x.setEaseToD(x + _init_param.servo[AXIS_X].offset, millis_for_move);
@@ -150,11 +204,16 @@ void StackchanSERVO::moveXY(int x, int y, uint32_t millis_for_move) {
 }
 
 void StackchanSERVO::moveXY(servo_param_s servo_param_x, servo_param_s servo_param_y) {
-  if (_servo_type == SCS) {
+  if (_servo_type == ServoType::SCS) {
     _sc.WritePos(AXIS_X + 1, convertSCS0009Pos(servo_param_x.degree + servo_param_x.offset), servo_param_x.millis_for_move);
     _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(servo_param_y.degree + servo_param_y.offset), servo_param_y.millis_for_move);
     _isMoving = true;
     vTaskDelay(max(servo_param_x.millis_for_move, servo_param_y.millis_for_move)/portTICK_PERIOD_MS);
+    _isMoving = false;
+  } else if (_servo_type == ServoType::DYN_XL330) {
+    _isMoving = true;
+    _dxl.setGoalPosition(AXIS_X + 1, convertDYNIXELXL330(servo_param_x.degree + _init_param.servo[AXIS_X].offset)); 
+    _dxl.setGoalPosition(AXIS_Y + 1, convertDYNIXELXL330(servo_param_y.degree + _init_param.servo[AXIS_Y].offset)); // RT版に合わせて+180°しています。
     _isMoving = false;
   } else {
     if (servo_param_x.degree != 0) {
@@ -211,3 +270,4 @@ void StackchanSERVO::motion(Motion motion_number) {
     delay(1000);
     moveXY(_init_param.servo[AXIS_X].start_degree, _init_param.servo[AXIS_Y].degree, 1000);
 }
+

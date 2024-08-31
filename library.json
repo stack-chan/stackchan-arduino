@@ -15,8 +15,42 @@
       }
     ],
     "license": "MIT",
-    "dependencies": {
-    },
+    "dependencies": [
+      {
+        "owner": "M5Stack",
+        "name": "M5Unified",
+        "version": ">=0.1.16"
+      },
+      {
+        "owner": "madhephaestus",
+        "name": "ESP32Servo",
+        "version": "0.13.0"
+      },
+      {
+        "owner": "arminjo",
+        "name": "ServoEasing",
+        "version": "3.1.0"
+      },
+      {
+        "owner": "bblanchon",
+        "name": "ArduinoJson",
+        "version": "^6"
+      },
+      {
+        "owner": "robotis-git",
+        "name": "Dynamixel2Arduino",
+        "version": "^0.7.0"
+      },
+      {
+        "owner": "tobozo",
+        "name": "YAMLDuino",
+        "version": "1.4.2"
+      },
+      {
+        "name": "SCServo",
+        "version": "https://github.com/mongonta0716/SCServo.git"
+      }
+    ],
     "version": "0.0.1",
     "frameworks": "arduino",
     "platforms": "espressif32"
