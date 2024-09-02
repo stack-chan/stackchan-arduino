@@ -50,6 +50,7 @@ lib_ldf_mode = deep                                       ; これを忘れる�
 https://github.com/stack-chan/stack-chan
 
 # Credit
+
 - [meganetaaan](https://github.com/meganetaaan)
 - [lovyan03](https://github.com/lovyan03/LovyanGFX)
 - [robo8080](https://github.com/robo8080)
