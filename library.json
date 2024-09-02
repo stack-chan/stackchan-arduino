@@ -1,10 +1,10 @@
 {
-    "name": "Stackchan-arduino",
+    "name": "stackchan-arduino",
     "keywords": "stackchan, servo, M5Stack",
     "description": "An M5Stack library for Stackchan",
     "repository": {
       "type": "git",
-      "url": "https://github.com/mongonta0716/stackchan-arduino.git"
+      "url": "https://github.com/stack-chan/stackchan-arduino.git"
     },
     "authors": [
       {
