@@ -187,6 +187,7 @@ void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
         _servo_type = ServoType::PWM;
     }
     _secret_config_show     = doc["secret_config_show"].as<bool>(); 
+    
 }
 
 void StackchanSystemConfig::setSecretConfig(DynamicJsonDocument doc) {

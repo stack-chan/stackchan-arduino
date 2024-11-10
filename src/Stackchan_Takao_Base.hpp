@@ -20,7 +20,7 @@ PowerStatus checkTakaoBasePowerStatus(m5::Power_Class* power, int16_t battery_th
     return PowerStatus::Battery;  
   }
 
-  if (power->getExtOutput() && (power->getBatteryCurrent() >= 0) {
+  if (power->getExtOutput() && (power->getBatteryCurrent() >= 0)) {
     // M5StackのUSB-C端子から給電されている状態。
     power->setLed(80);
     return PowerStatus::SidePower;
@@ -29,7 +29,7 @@ PowerStatus checkTakaoBasePowerStatus(m5::Power_Class* power, int16_t battery_th
   if (power->getBatteryLevel() < battery_threshold) {
     // Batteryの電圧が閾値よりも下がったときの処理
     power->setExtOutput(false); // 後側のUSB-Cの給電状態を把握するためにfalseにする必要があります。
-    if (power->getVBUSVoltage() > 3000) {
+    if (power->getBatteryCurrent() > 0) {
       // 後ろから給電されている状態。
       power->setLed(80);
       return PowerStatus::BackPower; 

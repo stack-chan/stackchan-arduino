@@ -230,6 +230,24 @@ void StackchanSERVO::moveXY(servo_param_s servo_param_x, servo_param_s servo_par
   _last_degree_y = servo_param_y.degree;
 }
 
+// @uint32_t speed 0〜1000
+void StackchanSERVO::turnX(uint32_t speed, bool is_cw, uint32_t millis_for_move) {
+    if (speed >= 1000) {
+      speed = 1000;
+    }
+    if (is_cw) {
+      speed += 1000; // 逆回転時は+1000
+    }
+    Serial.printf("speed: %d\n", speed);
+    _sc.PWMMode(1, true); // 回転モード
+    _isMoving = true;
+    _sc.WritePWM(1, speed);
+    vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
+    _isMoving = false;
+    _sc.PWMMode(1, false); // 位置決めモードへ戻す 
+  return;
+}
+
 void StackchanSERVO::motion(Motion motion_number) {
     if (motion_number == nomove) return; 
     moveXY(90, 75, 500);
