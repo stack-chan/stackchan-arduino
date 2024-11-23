@@ -16,6 +16,14 @@ static long convertDYNIXELXL330(int16_t degree) {
   return ret;
 }
 
+static long convertDYNIXELXL330_RT(int16_t degree) {
+  M5_LOGI("Degree: %d\n", degree);
+  
+  long ret =  map(degree, -360, 720, -4095, 8191);
+  M5_LOGI("Position: %d\n", ret);
+  return ret;
+}
+
 // シリアルサーボ用のEasing関数
 float quadraticEaseInOut(float p) {
   //return p;
@@ -34,6 +42,13 @@ StackchanSERVO::StackchanSERVO() {}
 
 StackchanSERVO::~StackchanSERVO() {}
 
+float StackchanSERVO::getPosition(int x){
+  if (_servo_type == RT_DYN_XL330){
+    return _dxl.getPresentPosition(x);;
+  } else {
+    M5_LOGI("getPosition::Command is only supprted in RT_DYN_XL330");
+  }
+};
 
 void StackchanSERVO::attachServos() {
   if (_servo_type == ServoType::SCS) {
@@ -68,6 +83,40 @@ void StackchanSERVO::attachServos() {
     //_dxl.torqueOff(AXIS_X + 1);
     //_dxl.torqueOff(AXIS_Y + 1);
     
+  } else if (_servo_type == ServoType::RT_DYN_XL330){
+    M5_LOGI("RT_DYN_XL330");
+    Serial2.begin(1000000, SERIAL_8N1, _init_param.servo[AXIS_X].pin, _init_param.servo[AXIS_Y].pin);
+    _dxl = Dynamixel2Arduino(Serial2);
+    _dxl.begin(1000000);
+    _dxl.setPortProtocolVersion(DXL_PROTOCOL_VERSION);
+    _dxl.ping(AXIS_X + 1);
+    _dxl.ping(AXIS_Y + 1);
+    _dxl.setOperatingMode(AXIS_X + 1, OP_EXTENDED_POSITION);
+    _dxl.setOperatingMode(AXIS_Y + 1, OP_EXTENDED_POSITION);
+    _dxl.writeControlTableItem(DRIVE_MODE, AXIS_X + 1, 4);  // Velocityのパラメータを移動時間(msec)で指定するモードに変更
+    _dxl.writeControlTableItem(DRIVE_MODE, AXIS_Y + 1, 4);  // Velocityのパラメータを移動時間(msec)で指定するモードに変更
+    _dxl.torqueOn(AXIS_X + 1);
+    delay(10); // ここでWaitを入れないと、Y(tilt)サーボが動かない場合がある。
+    _dxl.torqueOn(AXIS_Y + 1);
+    delay(100);
+    _dxl.writeControlTableItem(PROFILE_VELOCITY, AXIS_X + 1, 1000);
+    _dxl.writeControlTableItem(PROFILE_VELOCITY, AXIS_Y + 1, 1000);
+    delay(100);
+
+    M5_LOGI("CurrentPosition X:%d, Y:%d",  _dxl.getPresentPosition(AXIS_X + 1), _dxl.getPresentPosition(AXIS_Y + 1));
+
+    if (_dxl.getPresentPosition(AXIS_X + 1) > 4096) {
+      _init_param.servo[AXIS_X].offset = _init_param.servo[AXIS_X].offset + 360;
+    }
+    if (_dxl.getPresentPosition(AXIS_Y + 1) > 4096) {
+      _init_param.servo[AXIS_Y].offset = _init_param.servo[AXIS_Y].offset + 360;
+    }
+    
+    _dxl.setGoalPosition(AXIS_X + 1, convertDYNIXELXL330_RT(_init_param.servo[AXIS_X].start_degree + _init_param.servo[AXIS_X].offset));
+    _dxl.setGoalPosition(AXIS_Y + 1, convertDYNIXELXL330_RT(_init_param.servo[AXIS_Y].start_degree + _init_param.servo[AXIS_Y].offset));
+    //_dxl.torqueOff(AXIS_X + 1);
+    //_dxl.torqueOff(AXIS_Y + 1);
+
   } else {
     // SG90 PWM
     if (_servo_x.attach(_init_param.servo[AXIS_X].pin, 
@@ -122,7 +171,16 @@ void StackchanSERVO::moveX(int x, uint32_t millis_for_move) {
     _isMoving = true;
     vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
     _isMoving = false;
-  } else {
+  } else if (_servo_type == ServoType::RT_DYN_XL330) {
+    _dxl.writeControlTableItem(PROFILE_VELOCITY, AXIS_X + 1, millis_for_move);
+    vTaskDelay(10/portTICK_PERIOD_MS);
+    _dxl.setGoalPosition(AXIS_X + 1, convertDYNIXELXL330_RT(x + _init_param.servo[AXIS_X].offset));
+    vTaskDelay(10/portTICK_PERIOD_MS);
+    _isMoving = true;
+    vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
+    _isMoving = false;
+    M5_LOGI("X:%f", getPosition(AXIS_X+1));
+  }else {
     if (millis_for_move == 0) {
       _servo_x.easeTo(x + _init_param.servo[AXIS_X].offset);
     } else {
@@ -154,6 +212,15 @@ void StackchanSERVO::moveY(int y, uint32_t millis_for_move) {
     _isMoving = true;
     vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
     _isMoving = false;
+  } else if (_servo_type == ServoType::RT_DYN_XL330) {
+    _dxl.writeControlTableItem(PROFILE_VELOCITY, AXIS_Y + 1, millis_for_move);
+    vTaskDelay(10/portTICK_PERIOD_MS);
+    _dxl.setGoalPosition(AXIS_Y + 1, convertDYNIXELXL330_RT(y + _init_param.servo[AXIS_Y].offset)); // RT版に合わせて+180°しています。
+    vTaskDelay(10/portTICK_PERIOD_MS);
+    _isMoving = true;
+    vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
+    _isMoving = false;
+    M5_LOGI("Y:%f", getPosition(AXIS_Y+1));
   } else {
     if (millis_for_move == 0) {
       _servo_y.easeTo(y + _init_param.servo[AXIS_Y].offset);
@@ -191,6 +258,12 @@ void StackchanSERVO::moveXY(int x, int y, uint32_t millis_for_move) {
     _dxl.setGoalPosition(AXIS_X + 1, convertDYNIXELXL330(x + _init_param.servo[AXIS_X].offset)); 
     _dxl.setGoalPosition(AXIS_Y + 1, convertDYNIXELXL330(y + _init_param.servo[AXIS_Y].offset)); // RT版に合わせて+180°しています。
     _isMoving = false;
+  } else if (_servo_type == ServoType::RT_DYN_XL330) {
+    _isMoving = true;
+    _dxl.setGoalPosition(AXIS_X + 1, convertDYNIXELXL330_RT(x + _init_param.servo[AXIS_X].offset)); 
+    _dxl.setGoalPosition(AXIS_Y + 1, convertDYNIXELXL330_RT(y + _init_param.servo[AXIS_Y].offset)); // RT版に合わせて+180°しています。
+    _isMoving = false;
+    M5_LOGI("X:%f, Y:%f", getPosition(AXIS_X+1), getPosition(AXIS_Y+1));
   } else {
     _servo_x.setEaseToD(x + _init_param.servo[AXIS_X].offset, millis_for_move);
     _servo_y.setEaseToD(y + _init_param.servo[AXIS_Y].offset, millis_for_move);
@@ -215,6 +288,12 @@ void StackchanSERVO::moveXY(servo_param_s servo_param_x, servo_param_s servo_par
     _dxl.setGoalPosition(AXIS_X + 1, convertDYNIXELXL330(servo_param_x.degree + _init_param.servo[AXIS_X].offset)); 
     _dxl.setGoalPosition(AXIS_Y + 1, convertDYNIXELXL330(servo_param_y.degree + _init_param.servo[AXIS_Y].offset)); // RT版に合わせて+180°しています。
     _isMoving = false;
+  } else if (_servo_type == ServoType::RT_DYN_XL330) {
+    _isMoving = true;
+    _dxl.setGoalPosition(AXIS_X + 1, convertDYNIXELXL330_RT(servo_param_x.degree + _init_param.servo[AXIS_X].offset)); 
+    _dxl.setGoalPosition(AXIS_Y + 1, convertDYNIXELXL330_RT(servo_param_y.degree + _init_param.servo[AXIS_Y].offset)); // RT版に合わせて+180°しています。
+    _isMoving = false;
+    M5_LOGI("X:%f, Y:%f", getPosition(AXIS_X+1), getPosition(AXIS_Y+1));
   } else {
     if (servo_param_x.degree != 0) {
       _servo_x.setEaseToD(servo_param_x.degree + servo_param_x.offset, servo_param_x.millis_for_move);

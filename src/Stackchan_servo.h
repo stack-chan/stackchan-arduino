@@ -34,7 +34,8 @@ enum ServoAxis {
 enum ServoType {
     PWM,             // SG90 PWM
     SCS,             // Feetech SCS0009
-    DYN_XL330        // Dynamixel XL330
+    DYN_XL330,        // Dynamixel XL330
+    RT_DYN_XL330     // Dynamixel XL330 on RT version stackchan
 };
 
 typedef struct ServoParam {
@@ -43,8 +44,8 @@ typedef struct ServoParam {
     int16_t offset;                    // オフセット（90°からの+-）
     int16_t degree;                    // 角度
     uint32_t millis_for_move;         // 移動時間(msec)
-    uint16_t lower_limit;              // サーボ角度の下限
-    uint16_t upper_limit;              // サーボ角度の上限
+    int16_t lower_limit;              // サーボ角度の下限
+    int16_t upper_limit;              // サーボ角度の上限
 } servo_param_s;
 
 
@@ -70,6 +71,9 @@ class StackchanSERVO {
     public:
         StackchanSERVO();
         ~StackchanSERVO();
+        
+        float getPosition(int x);
+
         void begin(stackchan_servo_initial_param_s init_params);
         void begin(int servo_pin_x, int16_t start_degree_x, int16_t offset_x, 
                    int servo_pin_y, int16_t start_degree_y, int16_t offset_y,
