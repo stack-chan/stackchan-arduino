@@ -72,7 +72,7 @@ void StackchanSERVO::attachServos() {
     _dxl.writeControlTableItem(DRIVE_MODE, AXIS_X + 1, 4);  // Velocityのパラメータを移動時間(msec)で指定するモードに変更
     _dxl.writeControlTableItem(DRIVE_MODE, AXIS_Y + 1, 4);  // Velocityのパラメータを移動時間(msec)で指定するモードに変更
     _dxl.torqueOn(AXIS_X + 1);
-    delay(10); // ここでWaitを入れないと、Y(tilt)サーボが動かない場合がある。
+    delay(100); // ここでWaitを入れないと、Y(tilt)サーボが動かない場合がある。
     _dxl.torqueOn(AXIS_Y + 1);
     delay(100);
     _dxl.writeControlTableItem(PROFILE_VELOCITY, AXIS_X + 1, 1000);
@@ -103,13 +103,18 @@ void StackchanSERVO::attachServos() {
     _dxl.writeControlTableItem(PROFILE_VELOCITY, AXIS_Y + 1, 1000);
     delay(100);
 
+    M5_LOGI("CurrentPosition X:%f, Y:%f",  _dxl.getPresentPosition(AXIS_X + 1), _dxl.getPresentPosition(AXIS_Y + 1));
+
     if (_dxl.getPresentPosition(AXIS_X + 1) > 4096) {
       _init_param.servo[AXIS_X].offset = _init_param.servo[AXIS_X].offset + 360;
     }
-    if (_dxl.getPresentPosition(AXIS_Y + 1) > 4096) {
+    if ((_dxl.getPresentPosition(AXIS_Y + 1)-convertDYNIXELXL330_RT(_init_param.servo[AXIS_Y].lower_limit + _init_param.servo[AXIS_Y].offset)) > convertDYNIXELXL330_RT(270)) {
       _init_param.servo[AXIS_Y].offset = _init_param.servo[AXIS_Y].offset + 360;
     }
+    //_init_param.servo[AXIS_Y].offset = 360;
     
+    M5_LOGI("Current Offset X:%d, Y:%d", _init_param.servo[AXIS_X].offset, _init_param.servo[AXIS_Y].offset);
+
     _dxl.setGoalPosition(AXIS_X + 1, convertDYNIXELXL330_RT(_init_param.servo[AXIS_X].start_degree + _init_param.servo[AXIS_X].offset));
     _dxl.setGoalPosition(AXIS_Y + 1, convertDYNIXELXL330_RT(_init_param.servo[AXIS_Y].start_degree + _init_param.servo[AXIS_Y].offset));
     //_dxl.torqueOff(AXIS_X + 1);

@@ -44,8 +44,8 @@ typedef struct ServoParam {
     int16_t offset;                    // オフセット（90°からの+-）
     int16_t degree;                    // 角度
     uint32_t millis_for_move;         // 移動時間(msec)
-    uint16_t lower_limit;              // サーボ角度の下限
-    uint16_t upper_limit;              // サーボ角度の上限
+    int16_t lower_limit;              // サーボ角度の下限
+    int16_t upper_limit;              // サーボ角度の上限
 } servo_param_s;
 
 
