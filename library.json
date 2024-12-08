@@ -19,7 +19,7 @@
       {
         "owner": "M5Stack",
         "name": "M5Unified",
-        "version": ">=0.1.16"
+        "version": "^0.2.1"
       },
       {
         "owner": "madhephaestus",
@@ -51,7 +51,7 @@
         "version": "https://github.com/mongonta0716/SCServo.git"
       }
     ],
-    "version": "0.0.1",
+    "version": "0.0.2",
     "frameworks": "arduino",
     "platforms": "espressif32"
   }
