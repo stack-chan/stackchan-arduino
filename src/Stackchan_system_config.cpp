@@ -25,6 +25,7 @@ void StackchanSystemConfig::setDefaultParameters() {
         case m5::board_t::board_M5StackCoreS3:
             _servo[AXIS_X].pin = 1;
             _servo[AXIS_Y].pin = 2;
+            break;
         default:
             M5_LOGI("UnknownBoard:%d\n", M5.getBoard());
             _servo[AXIS_X].pin = 22;
