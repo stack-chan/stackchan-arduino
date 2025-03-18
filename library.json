@@ -19,7 +19,7 @@
       {
         "owner": "M5Stack",
         "name": "M5Unified",
-        "version": ">=0.1.16"
+        "version": "^0.2.5"
       },
       {
         "owner": "madhephaestus",
@@ -34,7 +34,7 @@
       {
         "owner": "bblanchon",
         "name": "ArduinoJson",
-        "version": "^6"
+        "version": "^7"
       },
       {
         "owner": "robotis-git",
@@ -44,7 +44,7 @@
       {
         "owner": "tobozo",
         "name": "YAMLDuino",
-        "version": "1.4.2"
+        "version": "1.5.0"
       },
       {
         "name": "SCServo",
