@@ -23,6 +23,7 @@ void StackchanSystemConfig::setDefaultParameters() {
             _servo[AXIS_Y].pin = 21;
             break;
         case m5::board_t::board_M5StackCoreS3:
+        case m5::board_t::board_M5StackCoreS3SE:
             _servo[AXIS_X].pin = 1;
             _servo[AXIS_Y].pin = 2;
             break;
