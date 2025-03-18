@@ -23,8 +23,10 @@ void StackchanSystemConfig::setDefaultParameters() {
             _servo[AXIS_Y].pin = 21;
             break;
         case m5::board_t::board_M5StackCoreS3:
+        case m5::board_t::board_M5StackCoreS3SE:
             _servo[AXIS_X].pin = 1;
             _servo[AXIS_Y].pin = 2;
+            break;
         default:
             M5_LOGI("UnknownBoard:%d\n", M5.getBoard());
             _servo[AXIS_X].pin = 22;
@@ -190,6 +192,7 @@ void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
         _servo_type = ServoType::PWM;
     }
     _secret_config_show     = doc["secret_config_show"].as<bool>(); 
+    
 }
 
 void StackchanSystemConfig::setSecretConfig(DynamicJsonDocument doc) {
