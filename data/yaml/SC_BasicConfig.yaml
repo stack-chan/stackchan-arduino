@@ -6,6 +6,7 @@ servo:
     # CoreS3 PortA X:2, Y:1 PortB X:9, Y:8 PortC X:17, Y:18
     # Stack-chanPCB Core1 X:5,Y:2 Core2 X:19,Y27
     # When using SCS0009 or Dynamixel XL330, x:RX, y:TX (not used)
+    # RT Version: x:6 y:7
     x: 17
     y: 18
   offset: 
@@ -17,6 +18,7 @@ servo:
     # SG90: x:90 y:90
     # SCS0009: x:150, y:150
     # Dynamixel XL330: x:180, y:270
+    # RT Version X:180 Y:5
     x: 90
     y: 90
   lower_limit:
@@ -24,6 +26,7 @@ servo:
     # SG90: x:0, y:60
     # SCS0009: x:0, y:120
     # Dynamixel XL330: x:0, y:220
+    # RT Version X:90 Y:-5
     x: 0
     y: 60
   upper_limit:
@@ -31,7 +34,8 @@ servo:
     # SG90: x:180, y:90
     # SCS0009: x:300, y:150
     # Dynamixel XL330: x:360, y:270
-    x: 90
+    # Dynamixel RTVersion X:270 Y:15
+    x: 180
     y: 90
   speed: 
     normal_mode: 
@@ -45,7 +49,7 @@ servo:
       move_min: 500
       move_max: 1000
 takao_base: false # Whether to use takaobase to feed power from the rear connector.(Stack-chan_Takao_Base  https://ssci.to/8905)
-servo_type: "PWM" # "PWM": SG90PWMServo, "SCS": Feetech SCS0009 "DYN_XL330": Dynamixel XL330
+servo_type: "PWM" # "PWM": SG90PWMServo, "SCS": Feetech SCS0009 "DYN_XL330": Dynamixel XL330, "RT_DYN_XL330": RTVersion
 
 ### 以下はアプリケーションによって設定が変わります。
 bluetooth: 

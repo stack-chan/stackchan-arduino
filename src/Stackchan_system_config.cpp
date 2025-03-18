@@ -181,6 +181,9 @@ void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
     if (_servo_type_str.indexOf("SCS") != -1) {
         // SCS0009
         _servo_type = ServoType::SCS;
+    } else if (_servo_type_str.indexOf("RT_DYN_XL330") != -1) {
+        // Dynamixel XL330 for RT Version
+        _servo_type = ServoType::RT_DYN_XL330;
     } else if (_servo_type_str.indexOf("DYN_XL330") != -1) {
         // Dynamixel XL330
         _servo_type = ServoType::DYN_XL330;

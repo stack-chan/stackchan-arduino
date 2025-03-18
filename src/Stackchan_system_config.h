@@ -41,10 +41,10 @@ typedef struct SecretItems {
 
 typedef struct ServoInitialParam {
         uint8_t pin;
-        uint16_t offset;
-        uint16_t upper_limit;
-        uint16_t lower_limit;
-        uint16_t start_degree;
+        int16_t offset;
+        int16_t upper_limit;
+        int16_t lower_limit;
+        int16_t start_degree;
 } servo_initial_param_s;
 
 enum AvatarMode {
