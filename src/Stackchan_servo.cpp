@@ -254,7 +254,7 @@ void StackchanSERVO::moveXY(int x, int y, uint32_t millis_for_move) {
       int y_pos = _last_degree_y + increase_degree_y * quadraticEaseInOut(f);
       _sc.WritePos(AXIS_X + 1, convertSCS0009Pos(x_pos + _init_param.servo[AXIS_X].offset), division_time);
       _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(y_pos + _init_param.servo[AXIS_Y].offset), division_time);
-      //vTaskDelay(division_time);
+      vTaskDelay(division_time);
     }
     _isMoving = false;
   } else if (_servo_type == ServoType::DYN_XL330) {
