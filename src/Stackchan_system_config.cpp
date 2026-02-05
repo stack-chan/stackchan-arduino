@@ -178,16 +178,20 @@ void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
     _led_pin = doc["led_pin"];
     _takao_base = doc["takao_base"];
     _servo_type_str = doc["servo_type"].as<String>();
-    if (_servo_type_str.indexOf("SCS") != -1) {
+    if (_servo_type_str.indexOf("M5_SCS") != -1) {
         // SCS0009
-        _servo_type = ServoType::SCS;
+        _servo_type = ServoType::M5_SCS;
     } else if (_servo_type_str.indexOf("RT_DYN_XL330") != -1) {
         // Dynamixel XL330 for RT Version
         _servo_type = ServoType::RT_DYN_XL330;
     } else if (_servo_type_str.indexOf("DYN_XL330") != -1) {
         // Dynamixel XL330
         _servo_type = ServoType::DYN_XL330;
-    } else  {
+    } else if (_servo_type_str.indexOf("SCS") != -1) {
+        // M5Stack用SCS0009 (PY32IOExpander使用)
+        _servo_type = ServoType::SCS; 
+    
+    } else {
         // PWMサーボ
         _servo_type = ServoType::PWM;
     }

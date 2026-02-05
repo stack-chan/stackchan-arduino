@@ -1,17 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include "esp_idf_version.h"
-#if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
-#include "driver/i2c_master.h"
-#else
-#include "driver/i2c.h"
-typedef i2c_port_t i2c_master_bus_handle_t;
-typedef struct {
-    i2c_port_t port;
-    uint8_t address;
-} i2c_master_dev_handle_t;
-#endif
+#include <cstddef>
+#include <M5Unified.h>
 #include "esp_err.h"
 
 namespace m5 {
@@ -19,8 +10,10 @@ namespace m5 {
 class PY32IOExpander_Class {
 public:
     static constexpr uint8_t DEFAULT_ADDRESS = 0x6F;
+    static constexpr uint32_t DEFAULT_I2C_FREQ = 100000;
 
-    PY32IOExpander_Class(i2c_master_bus_handle_t i2c_bus_handle, uint8_t addr = DEFAULT_ADDRESS);
+    PY32IOExpander_Class(uint8_t addr = DEFAULT_ADDRESS, m5::I2C_Class* i2c = &M5.In_I2C,
+                         uint32_t freq = DEFAULT_I2C_FREQ);
     ~PY32IOExpander_Class();
 
     /**
@@ -79,7 +72,8 @@ public:
     void refreshLeds();
 
 private:
-    i2c_master_dev_handle_t _i2c_dev;
+    m5::I2C_Class* _i2c;
+    uint32_t _freq;
     uint8_t _addr;
     bool _initialized;
 

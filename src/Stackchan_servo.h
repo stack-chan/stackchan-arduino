@@ -12,6 +12,7 @@
 #include <SCServo.h>
 #include <M5Unified.h>
 #include <Dynamixel2Arduino.h>
+#include "drivers/PY32IOExpander_Class/PY32IOExpander_Class.hpp"
 
 using namespace ControlTableItem;
 
@@ -34,8 +35,9 @@ enum ServoAxis {
 enum ServoType {
     PWM,             // SG90 PWM
     SCS,             // Feetech SCS0009
-    DYN_XL330,        // Dynamixel XL330
-    RT_DYN_XL330     // Dynamixel XL330 on RT version stackchan
+    DYN_XL330,       // Dynamixel XL330
+    RT_DYN_XL330,    // Dynamixel XL330 on RT version stackchan
+    M5_SCS           // M5Stack用SCS0009 (PY32IOExpander使用)
 };
 
 typedef struct ServoParam {
@@ -59,6 +61,8 @@ const float DXL_PROTOCOL_VERSION = 2.0f;
 class StackchanSERVO {
     protected:
         ServoType _servo_type;
+        m5::PY32IOExpander_Class* _ioexpander;
+        m5::I2C_Class* _i2c;
         SCSCL _sc;
         Dynamixel2Arduino _dxl;
         ServoEasing _servo_x;
@@ -68,6 +72,7 @@ class StackchanSERVO {
         bool _isMoving;
         int _last_degree_x;                              // 前回のX軸の角度
         int _last_degree_y;                              // 前回のY軸の角度
+
     public:
         StackchanSERVO();
         ~StackchanSERVO();
@@ -77,7 +82,7 @@ class StackchanSERVO {
         void begin(stackchan_servo_initial_param_s init_params);
         void begin(int servo_pin_x, int16_t start_degree_x, int16_t offset_x, 
                    int servo_pin_y, int16_t start_degree_y, int16_t offset_y,
-                   ServoType servo_type=PWM);
+                   ServoType servo_type=PWM, m5::I2C_Class* i2c = nullptr);
         void moveX(int x, uint32_t millis_for_move = 0);
         void moveY(int y, uint32_t millis_for_move = 0);
         void moveXY(int x, int y, uint32_t millis_for_move);

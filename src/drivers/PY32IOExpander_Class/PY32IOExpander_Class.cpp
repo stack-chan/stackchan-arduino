@@ -2,44 +2,6 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include <cstring>
-
-#if !(defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5)
-static esp_err_t i2c_master_transmit_compat(i2c_master_dev_handle_t dev, const uint8_t* data, size_t len, int timeout_ms)
-{
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (dev.address << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write(cmd, (uint8_t*)data, len, true);
-    i2c_master_stop(cmd);
-    esp_err_t err = i2c_master_cmd_begin(dev.port, cmd, pdMS_TO_TICKS(timeout_ms));
-    i2c_cmd_link_delete(cmd);
-    return err;
-}
-
-static esp_err_t i2c_master_transmit_receive_compat(i2c_master_dev_handle_t dev, const uint8_t* tx_data, size_t tx_len,
-                                                    uint8_t* rx_data, size_t rx_len, int timeout_ms)
-{
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (dev.address << 1) | I2C_MASTER_WRITE, true);
-    if (tx_len > 0) {
-        i2c_master_write(cmd, (uint8_t*)tx_data, tx_len, true);
-    }
-    if (rx_len > 0) {
-        i2c_master_start(cmd);
-        i2c_master_write_byte(cmd, (dev.address << 1) | I2C_MASTER_READ, true);
-        if (rx_len > 1) {
-            i2c_master_read(cmd, rx_data, rx_len - 1, I2C_MASTER_ACK);
-        }
-        i2c_master_read_byte(cmd, rx_data + rx_len - 1, I2C_MASTER_NACK);
-    }
-    i2c_master_stop(cmd);
-    esp_err_t err = i2c_master_cmd_begin(dev.port, cmd, pdMS_TO_TICKS(timeout_ms));
-    i2c_cmd_link_delete(cmd);
-    return err;
-}
-#endif
 
 static const char* TAG = "PY32IOExpander";
 
@@ -88,51 +50,26 @@ static constexpr uint8_t REG_PWM3_DUTY_H = 0x20;
 static constexpr uint8_t REG_PWM4_DUTY_L = 0x21;
 static constexpr uint8_t REG_PWM4_DUTY_H = 0x22;
 
-PY32IOExpander_Class::PY32IOExpander_Class(i2c_master_bus_handle_t i2c_bus_handle, uint8_t addr)
-    : _addr(addr), _initialized(false)
+PY32IOExpander_Class::PY32IOExpander_Class(uint8_t addr, m5::I2C_Class* i2c, uint32_t freq)
+    : _i2c(i2c ? i2c : &M5.In_I2C), _freq(freq), _addr(addr), _initialized(false)
 {
-#if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
-    i2c_device_config_t dev_cfg = {
-        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address  = _addr,
-        .scl_speed_hz    = 100000,
-    };
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &_i2c_dev));
-#else
-    _i2c_dev.port = i2c_bus_handle;
-    _i2c_dev.address = _addr;
-#endif
 }
 
 PY32IOExpander_Class::~PY32IOExpander_Class()
 {
-#if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
-    if (_i2c_dev) {
-        i2c_master_bus_rm_device(_i2c_dev);
-    }
-#endif
 }
 
 esp_err_t PY32IOExpander_Class::writeRegister8(uint8_t reg, uint8_t value)
 {
-    uint8_t buf[2] = {reg, value};
-#if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
-    return i2c_master_transmit(_i2c_dev, buf, sizeof(buf), 1000);
-#else
-    return i2c_master_transmit_compat(_i2c_dev, buf, sizeof(buf), 1000);
-#endif
+    if (!_i2c) return ESP_ERR_INVALID_STATE;
+    return _i2c->writeRegister8(_addr, reg, value, _freq) ? ESP_OK : ESP_FAIL;
 }
 
 uint8_t PY32IOExpander_Class::readRegister8(uint8_t reg)
 {
-    uint8_t val   = 0;
-#if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
-    esp_err_t err = i2c_master_transmit_receive(_i2c_dev, &reg, 1, &val, 1, 1000);
-#else
-    esp_err_t err = i2c_master_transmit_receive_compat(_i2c_dev, &reg, 1, &val, 1, 1000);
-#endif
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "readRegister8 failed: %s", esp_err_to_name(err));
+    uint8_t val = 0;
+    if (!_i2c || !_i2c->readRegister(_addr, reg, &val, 1, _freq)) {
+        ESP_LOGE(TAG, "readRegister8 failed");
         return 0;
     }
     return val;
@@ -141,44 +78,26 @@ uint8_t PY32IOExpander_Class::readRegister8(uint8_t reg)
 esp_err_t PY32IOExpander_Class::writeRegister(uint8_t reg, const uint8_t* data, size_t len)
 {
     if (len == 0) return ESP_OK;
-
-    // Allocate buffer for reg + data
-    uint8_t* buf = (uint8_t*)malloc(len + 1);
-    if (!buf) return ESP_ERR_NO_MEM;
-
-    buf[0] = reg;
-    memcpy(buf + 1, data, len);
-
-#if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
-    esp_err_t err = i2c_master_transmit(_i2c_dev, buf, len + 1, 1000);
-#else
-    esp_err_t err = i2c_master_transmit_compat(_i2c_dev, buf, len + 1, 1000);
-#endif
-    free(buf);
-    return err;
+    if (!_i2c) return ESP_ERR_INVALID_STATE;
+    return _i2c->writeRegister(_addr, reg, data, len, _freq) ? ESP_OK : ESP_FAIL;
 }
 
 esp_err_t PY32IOExpander_Class::readRegister(uint8_t reg, uint8_t* data, size_t len)
 {
-#if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
-    return i2c_master_transmit_receive(_i2c_dev, &reg, 1, data, len, 1000);
-#else
-    return i2c_master_transmit_receive_compat(_i2c_dev, &reg, 1, data, len, 1000);
-#endif
+    if (!_i2c) return ESP_ERR_INVALID_STATE;
+    return _i2c->readRegister(_addr, reg, data, len, _freq) ? ESP_OK : ESP_FAIL;
 }
 
 esp_err_t PY32IOExpander_Class::bitOn(uint8_t reg, uint8_t mask)
 {
-    uint8_t val = readRegister8(reg);
-    val |= mask;
-    return writeRegister8(reg, val);
+    if (!_i2c) return ESP_ERR_INVALID_STATE;
+    return _i2c->bitOn(_addr, reg, mask, _freq) ? ESP_OK : ESP_FAIL;
 }
 
 esp_err_t PY32IOExpander_Class::bitOff(uint8_t reg, uint8_t mask)
 {
-    uint8_t val = readRegister8(reg);
-    val &= ~mask;
-    return writeRegister8(reg, val);
+    if (!_i2c) return ESP_ERR_INVALID_STATE;
+    return _i2c->bitOff(_addr, reg, mask, _freq) ? ESP_OK : ESP_FAIL;
 }
 
 void PY32IOExpander_Class::_writeBit(uint8_t reg_l, uint8_t reg_h, uint8_t pin, bool value)
@@ -207,18 +126,23 @@ bool PY32IOExpander_Class::_readBit(uint8_t reg_l, uint8_t reg_h, uint8_t pin)
 
 bool PY32IOExpander_Class::begin()
 {
+    M5_LOGI("PY32IOExpander_Class::begin addr=0x%02X freq=%u\n", _addr, _freq);
     uint8_t version = readRegister8(REG_VERSION);
     if (version == 0 || version == 0xFF) {
         ESP_LOGE(TAG, "Invalid version: 0x%02X", version);
+        M5_LOGI("Invalid version: 0x%02X", version);
         return false;
     }
+
     ESP_LOGI(TAG, "Version: 0x%02X", version);
+    M5_LOGI("Version: 0x%02X", version);
     _initialized = true;
     return true;
 }
 
 void PY32IOExpander_Class::setDirection(uint8_t pin, bool direction)
 {
+    M5_LOGI("setDirection pin=%d direction=%d\n", pin, direction);
     // direction: false=input (0), true=output (1)
     _writeBit(REG_GPIO_M_L, REG_GPIO_M_H, pin, direction);
 }
@@ -242,6 +166,7 @@ void PY32IOExpander_Class::enablePull(uint8_t pin, bool enablePull)
 
 void PY32IOExpander_Class::setPullMode(uint8_t pin, bool mode)
 {
+    M5_LOGI("setPullMode pin=%d mode=%d\n", pin, mode);
     // mode: false=down, true=up
     if (mode) {
         // Pull Up
@@ -277,6 +202,7 @@ bool PY32IOExpander_Class::getWriteValue(uint8_t pin)
 
 void PY32IOExpander_Class::digitalWrite(uint8_t pin, bool level)
 {
+    M5_LOGI("digitalWrite pin=%d level=%d\n", pin, level);
     _writeBit(REG_GPIO_O_L, REG_GPIO_O_H, pin, level);
 }
 

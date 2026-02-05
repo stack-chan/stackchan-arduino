@@ -46,11 +46,13 @@ float StackchanSERVO::getPosition(int x){
   if (_servo_type == RT_DYN_XL330){
     return _dxl.getPresentPosition(x);;
   } else {
-    M5_LOGI("getPosition::Command is only supprted in RT_DYN_XL330");
+    M5_LOGI("getPosition:Command is only supprted in RT_DYN_XL330");
+    return 0.0f;
   }
-};
+}
 
 void StackchanSERVO::attachServos() {
+  M5_LOGI("StackchanSERVO::attachServos\n");
   if (_servo_type == ServoType::SCS) {
     // SCS0009
     Serial2.begin(1000000, SERIAL_8N1, _init_param.servo[AXIS_X].pin, _init_param.servo[AXIS_Y].pin);
@@ -59,7 +61,45 @@ void StackchanSERVO::attachServos() {
     _sc.WritePos(AXIS_X + 1, convertSCS0009Pos(_init_param.servo[AXIS_X].start_degree + _init_param.servo[AXIS_X].offset), 1000);
     _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(_init_param.servo[AXIS_Y].start_degree + _init_param.servo[AXIS_Y].offset), 1000);
     vTaskDelay(1000/portTICK_PERIOD_MS);
+  } else if (_servo_type == ServoType::M5_SCS) {
+    M5_LOGI("M5_SCS");
+    // M5Stack用SCS0009 (PY32IOExpander使用)
+    _ioexpander = new m5::PY32IOExpander_Class(0x6F, _i2c);
 
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(200));
+
+        uint32_t start_tick = millis();
+
+        if (_ioexpander->begin()) {
+            break;
+        }
+        M5_LOGI("init failed, retrying...");
+    }
+
+
+
+    //_ioexpander->begin();
+    delay(500);
+    if (_ioexpander != nullptr) {
+      M5_LOGI("IOExpander initialized.\n");
+      _ioexpander->setDirection(0, true); // X軸サーボピンを出力に設定
+      _ioexpander->setPullMode(0, true); // プルアップ設定
+      _ioexpander->digitalWrite(0, true); // HIGHに設定
+      vTaskDelay(200/portTICK_PERIOD_MS);
+    } else { 
+      M5_LOGE("IOExpander not initialized!\n");
+      return;
+    }
+    M5_LOGI("IOExpander setup done.\n");
+
+    Serial2.begin(1000000, SERIAL_8N1, _init_param.servo[AXIS_X].pin, _init_param.servo[AXIS_Y].pin);
+    _sc.pSerial = &Serial2;
+    M5_LOGI("Servo ping:1:%d\n", _sc.Ping(1));
+    M5_LOGI("Servo ping:2:%d\n", _sc.Ping(2));
+    _sc.WritePos(AXIS_X + 1, convertSCS0009Pos(_init_param.servo[AXIS_X].start_degree + _init_param.servo[AXIS_X].offset), 1000);
+    _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(_init_param.servo[AXIS_Y].start_degree + _init_param.servo[AXIS_Y].offset), 1000);
+    vTaskDelay(1000/portTICK_PERIOD_MS);
   } else if (_servo_type == ServoType::DYN_XL330) {
     M5_LOGI("DYN_XL330");
     Serial2.begin(1000000, SERIAL_8N1, _init_param.servo[AXIS_X].pin, _init_param.servo[AXIS_Y].pin);
@@ -150,7 +190,7 @@ void StackchanSERVO::begin(stackchan_servo_initial_param_s init_param) {
 
 void StackchanSERVO::begin(int servo_pin_x, int16_t start_degree_x, int16_t offset_x, 
                            int servo_pin_y, int16_t start_degree_y, int16_t offset_y,
-                           ServoType servo_type) {
+                           ServoType servo_type, m5::I2C_Class* i2c) {
   _init_param.servo[AXIS_X].pin          = servo_pin_x;
   _init_param.servo[AXIS_X].start_degree = start_degree_x;
   _init_param.servo[AXIS_X].offset       = offset_x;
@@ -158,11 +198,12 @@ void StackchanSERVO::begin(int servo_pin_x, int16_t start_degree_x, int16_t offs
   _init_param.servo[AXIS_Y].start_degree = start_degree_y;
   _init_param.servo[AXIS_Y].offset       = offset_y;
   _servo_type = servo_type;
+  _i2c = i2c;
   attachServos();
 }
 
 void StackchanSERVO::moveX(int x, uint32_t millis_for_move) {
-  if (_servo_type == SCS) {
+  if (_servo_type == SCS || _servo_type == M5_SCS) {
     _sc.WritePos(AXIS_X + 1, convertSCS0009Pos(x + _init_param.servo[AXIS_X].offset), millis_for_move);
     _isMoving = true;
     vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
@@ -203,7 +244,7 @@ void StackchanSERVO::moveX(servo_param_s servo_param_x) {
 }
 
 void StackchanSERVO::moveY(int y, uint32_t millis_for_move) {
-  if (_servo_type == ServoType::SCS) {
+  if (_servo_type == ServoType::SCS || _servo_type == ServoType::M5_SCS) {
     _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(y + _init_param.servo[AXIS_Y].offset), millis_for_move);
     _isMoving = true;
     vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
@@ -243,7 +284,7 @@ void StackchanSERVO::moveY(servo_param_s servo_param_y) {
   moveY(servo_param_y.degree, servo_param_y.millis_for_move);
 }
 void StackchanSERVO::moveXY(int x, int y, uint32_t millis_for_move) {
-  if (_servo_type == ServoType::SCS) {
+  if (_servo_type == ServoType::SCS || _servo_type == ServoType::M5_SCS) {
     int increase_degree_x = x - _last_degree_x;
     int increase_degree_y = y - _last_degree_y;
     uint32_t division_time = millis_for_move / SERIAL_EASE_DIVISION;
@@ -281,7 +322,7 @@ void StackchanSERVO::moveXY(int x, int y, uint32_t millis_for_move) {
 }
 
 void StackchanSERVO::moveXY(servo_param_s servo_param_x, servo_param_s servo_param_y) {
-  if (_servo_type == ServoType::SCS) {
+  if (_servo_type == ServoType::SCS || _servo_type == ServoType::M5_SCS) {
     _sc.WritePos(AXIS_X + 1, convertSCS0009Pos(servo_param_x.degree + servo_param_x.offset), servo_param_x.millis_for_move);
     _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(servo_param_y.degree + servo_param_y.offset), servo_param_y.millis_for_move);
     _isMoving = true;
@@ -371,4 +412,3 @@ void StackchanSERVO::motion(Motion motion_number) {
     delay(1000);
     moveXY(_init_param.servo[AXIS_X].start_degree, _init_param.servo[AXIS_Y].degree, 1000);
 }
-
