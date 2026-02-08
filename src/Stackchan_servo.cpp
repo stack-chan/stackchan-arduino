@@ -284,19 +284,25 @@ void StackchanSERVO::moveY(servo_param_s servo_param_y) {
   moveY(servo_param_y.degree, servo_param_y.millis_for_move);
 }
 void StackchanSERVO::moveXY(int x, int y, uint32_t millis_for_move) {
-  if (_servo_type == ServoType::SCS || _servo_type == ServoType::M5_SCS) {
-    int increase_degree_x = x - _last_degree_x;
-    int increase_degree_y = y - _last_degree_y;
-    uint32_t division_time = millis_for_move / SERIAL_EASE_DIVISION;
-    _isMoving = true;
-    //M5_LOGI("SCS: %d, %d, %d", increase_degree_x, increase_degree_y, division_time);
-    for (float f=0.0f; f<1.0f; f=f+(1.0f/SERIAL_EASE_DIVISION)) {
-      int x_pos = _last_degree_x + increase_degree_x * quadraticEaseInOut(f);
-      int y_pos = _last_degree_y + increase_degree_y * quadraticEaseInOut(f);
-      _sc.WritePos(AXIS_X + 1, convertSCS0009Pos(x_pos + _init_param.servo[AXIS_X].offset), division_time);
-      _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(y_pos + _init_param.servo[AXIS_Y].offset), division_time);
-      vTaskDelay(division_time);
-    }
+  if (millis_for_move > 500 ) {
+    if (_servo_type == ServoType::SCS || _servo_type == ServoType::M5_SCS) {
+      int increase_degree_x = x - _last_degree_x;
+      int increase_degree_y = y - _last_degree_y;
+      uint32_t division_time = millis_for_move / SERIAL_EASE_DIVISION;
+      _isMoving = true;
+      M5_LOGI("SCS: %d, %d, %d", increase_degree_x, increase_degree_y, division_time);
+      for (float f=0.0f; f<1.0f; f=f+(1.0f/SERIAL_EASE_DIVISION)) {
+        int x_pos = _last_degree_x + increase_degree_x * quadraticEaseInOut(f);
+        int y_pos = _last_degree_y + increase_degree_y * quadraticEaseInOut(f);
+        _sc.WritePos(AXIS_X + 1, convertSCS0009Pos(x_pos + _init_param.servo[AXIS_X].offset), division_time);
+        _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(y_pos + _init_param.servo[AXIS_Y].offset), division_time);
+        vTaskDelay(division_time);
+      }
+  } else {
+      _sc.WritePos(AXIS_X + 1, convertSCS0009Pos(x + _init_param.servo[AXIS_X].offset), millis_for_move);
+      _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(y + _init_param.servo[AXIS_Y].offset), millis_for_move);
+      vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
+  }
     _isMoving = false;
   } else if (_servo_type == ServoType::DYN_XL330) {
     _isMoving = true;
