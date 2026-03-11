@@ -263,31 +263,37 @@ void StackchanSERVO::moveX(servo_param_s servo_param_x) {
   moveX(servo_param_x.degree, servo_param_x.millis_for_move);
 }
 
-void StackchanSERVO::moveY(int y, uint32_t millis_for_move) {
+void StackchanSERVO::moveY(int y, uint32_t millis_for_move, bool wait_for_completion) {
   if (_servo_type == ServoType::SCS || _servo_type == ServoType::M5_SCS) {
     if (!isSCSReady(_sc)) {
       return;
     }
     _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(y + _init_param.servo[AXIS_Y].offset), millis_for_move);
-    _isMoving = true;
-    vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
-    _isMoving = false;
+    if (wait_for_completion) {
+      _isMoving = true;
+      vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
+      _isMoving = false;
+    }
   } else if (_servo_type == ServoType::DYN_XL330) {
     _dxl.writeControlTableItem(PROFILE_VELOCITY, AXIS_Y + 1, millis_for_move);
     vTaskDelay(10/portTICK_PERIOD_MS);
     _dxl.setGoalPosition(AXIS_Y + 1, convertDYNIXELXL330(y + _init_param.servo[AXIS_Y].offset)); // RT版に合わせて+180°しています。
     vTaskDelay(10/portTICK_PERIOD_MS);
-    _isMoving = true;
-    vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
-    _isMoving = false;
+    if (wait_for_completion) {
+      _isMoving = true;
+      vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
+      _isMoving = false;
+    }
   } else if (_servo_type == ServoType::RT_DYN_XL330) {
     _dxl.writeControlTableItem(PROFILE_VELOCITY, AXIS_Y + 1, millis_for_move);
     vTaskDelay(10/portTICK_PERIOD_MS);
     _dxl.setGoalPosition(AXIS_Y + 1, convertDYNIXELXL330_RT(y + _init_param.servo[AXIS_Y].offset)); // RT版に合わせて+180°しています。
     vTaskDelay(10/portTICK_PERIOD_MS);
-    _isMoving = true;
-    vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
-    _isMoving = false;
+    if (wait_for_completion) {
+      _isMoving = true;
+      vTaskDelay(millis_for_move/portTICK_PERIOD_MS);
+      _isMoving = false;
+    }
     M5_LOGI("Y:%f", getPosition(AXIS_Y+1));
   } else {
     if (millis_for_move == 0) {
@@ -295,9 +301,13 @@ void StackchanSERVO::moveY(int y, uint32_t millis_for_move) {
     } else {
       _servo_y.easeToD(y + _init_param.servo[AXIS_Y].offset, millis_for_move);
     }
-    _isMoving = true;
-    synchronizeAllServosStartAndWaitForAllServosToStop();
-    _isMoving = false;
+    if (wait_for_completion) {
+      _isMoving = true;
+      synchronizeAllServosStartAndWaitForAllServosToStop();
+      _isMoving = false;
+    } else {
+      synchronizeAllServosAndStartInterrupt(false);
+    }
   }
   _last_degree_y = y;
 }

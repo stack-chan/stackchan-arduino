@@ -84,7 +84,7 @@ class StackchanSERVO {
                    int servo_pin_y, int16_t start_degree_y, int16_t offset_y,
                    ServoType servo_type=PWM, m5::I2C_Class* i2c = nullptr);
         void moveX(int x, uint32_t millis_for_move = 0);
-        void moveY(int y, uint32_t millis_for_move = 0);
+        void moveY(int y, uint32_t millis_for_move = 0, bool wait_for_completion = true);
         void moveXY(int x, int y, uint32_t millis_for_move);
         void moveX(servo_param_s servo_param_x);
         void moveY(servo_param_s servo_param_y);
