@@ -15,6 +15,9 @@ Stack Chan Library for ArduinoFramework
 - [Basic](./examples/Basic/) See here how to load parameters.
 - [stack-chan_tester](https://github.com/mongonta0716/stack-chan-tester) Usage Servo,etc.
 
+# API Documentation
+- [API Documentation](./docs/api_en.md)
+
 # Configuration files
 The settings are commented in detail in each file; please write them in YAML format. <br>* YAML is used because it is convenient to describe comments.
 - [SC_BasicConfig.yaml](./data/yaml/SC_BasicConfig.yaml)<br>This file collects the basic parameters necessary to start the stack chan.
