@@ -20,7 +20,7 @@ servo:
     # SCS0009: x:150, y:150
     # Dynamixel XL330: x:180, y:270
     # RT Version X:180 Y:5
-    # M5StackChan: x:150, y:260
+    # M5StackChan: x:150, y:90
     x: 150
     y: 90
   lower_limit:
@@ -29,7 +29,7 @@ servo:
     # SCS0009: x:0, y:120
     # Dynamixel XL330: x:0, y:220
     # RT Version X:90 Y:-5
-    # M5StackChan: x:0 y:170
+    # M5StackChan: x:0 y:0
     x: 0
     y: 0
   upper_limit:
@@ -38,7 +38,7 @@ servo:
     # SCS0009: x:300, y:150
     # Dynamixel XL330: x:360, y:270
     # Dynamixel RTVersion X:270 Y:15
-    # M5StackChan: X:300 y:260
+    # M5StackChan: X:300 y:90
     x: 300 
     y: 90
   speed: 
