@@ -22,7 +22,7 @@ servo:
     # RT Version X:180 Y:5
     # M5StackChan: x:150, y:260
     x: 150
-    y: 260
+    y: 90
   lower_limit:
     # 可動範囲の下限（下限と言っても取り付け方により逆の場合あり, 値の小さい方を指定。）
     # SG90: x:0, y:60
@@ -31,7 +31,7 @@ servo:
     # RT Version X:90 Y:-5
     # M5StackChan: x:0 y:170
     x: 0
-    y: 170
+    y: 0
   upper_limit:
     # 可動範囲の上限（上限と言っても取り付け方により逆の場合もあり, 値の大きい方を指定。）
     # SG90: x:180, y:90
@@ -40,7 +40,7 @@ servo:
     # Dynamixel RTVersion X:270 Y:15
     # M5StackChan: X:300 y:260
     x: 300 
-    y: 260
+    y: 90
   speed: 
     normal_mode: 
       interval_min: 3000
