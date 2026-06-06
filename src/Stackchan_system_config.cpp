@@ -75,10 +75,11 @@ void StackchanSystemConfig::setDefaultParameters() {
 void StackchanSystemConfig::loadConfig(fs::FS& fs, const char *app_yaml_filename, uint32_t app_yaml_filesize,
                                         const char* secret_yaml_filename, uint32_t secret_yaml_filesize,
                                         const char* basic_yaml_filename, uint32_t basic_yaml_filesize) {
+    (void)basic_yaml_filesize;
     M5_LOGI("----- StackchanSystemConfig::loadConfig:%s\n", basic_yaml_filename);
     M5_LOGI("----- app_yaml_filename:%s\n", app_yaml_filename);
     fs::File file = fs.open(basic_yaml_filename);
-    DynamicJsonDocument doc(basic_yaml_filesize);
+    JsonDocument doc;
     if (file) {
         DeserializationError err = deserializeYml(doc, file);
         if (err) {
@@ -103,10 +104,11 @@ void StackchanSystemConfig::loadConfig(fs::FS& fs, const char *app_yaml_filename
 }
 
 void StackchanSystemConfig::loadSecretConfig(fs::FS& fs, const char* yaml_filename, uint32_t yaml_size) {
+    (void)yaml_size;
     M5_LOGI("----- StackchanSecretConfig::loadConfig:%s\n", yaml_filename);
     File file = fs.open(yaml_filename);
     if (file) {
-        DynamicJsonDocument doc(yaml_size);
+        JsonDocument doc;
         auto err = deserializeYml( doc, file);
         if (err) {
             M5_LOGE("yaml file read error: %s\n", yaml_filename);
@@ -134,7 +136,7 @@ void StackchanSystemConfig::loadSecretConfig(fs::FS& fs, const char* yaml_filena
     }
 }
 
-void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
+void StackchanSystemConfig::setSystemConfig(JsonDocument& doc) {
     JsonObject servo = doc["servo"];
     _servo[AXIS_X].pin = servo["pin"]["x"];
     _servo[AXIS_Y].pin = servo["pin"]["y"];
@@ -199,7 +201,7 @@ void StackchanSystemConfig::setSystemConfig(DynamicJsonDocument doc) {
     
 }
 
-void StackchanSystemConfig::setSecretConfig(DynamicJsonDocument doc) {
+void StackchanSystemConfig::setSecretConfig(JsonDocument& doc) {
 
     _secret_config.wifi_info.ssid     = doc["wifi"]["ssid"].as<String>();
     _secret_config.wifi_info.password = doc["wifi"]["password"].as<String>();
@@ -216,7 +218,7 @@ const lgfx::IFont* StackchanSystemConfig::getFont() {
     } else if (_font_language_code.compareTo("CN")) {
         return &fonts::efontCN_16;
     } else {
-        M5_LOGI("FontCodeError:%s\n", _font_language_code);
+        M5_LOGI("FontCodeError:%s\n", _font_language_code.c_str());
         return &fonts::Font0;
     }
 } 
@@ -244,7 +246,7 @@ void StackchanSystemConfig::printAllParameters() {
     M5_LOGI("Bluetooth_starting_state:%s", _bluetooth.starting_state ? "true":"false");
     M5_LOGI("Bluetooth_start_volume:%d", _bluetooth.start_volume);
     M5_LOGI("auto_power_off_time:%d", _auto_power_off_time);
-    M5_LOGI("font_language:%s", _font_language_code);
+    M5_LOGI("font_language:%s", _font_language_code.c_str());
     for (int i=0;i<_lyrics_num;i++) {
         M5_LOGI("lyrics:%d:%s", i, _lyrics[i].c_str());
     }
@@ -265,8 +267,8 @@ void StackchanSystemConfig::printSecretParameters() {
     M5_LOGI("apikey_aiservice: %s", _secret_config.api_key.ai_service.c_str());
     M5_LOGI("apikey_tts: %s", _secret_config.api_key.tts.c_str());
 }
-void StackchanSystemConfig::loadExtendConfig(fs::FS& fs, const char* filename, uint32_t yaml_size) {  };
-void StackchanSystemConfig::setExtendSettings(DynamicJsonDocument doc) {  };
+void StackchanSystemConfig::loadExtendConfig(fs::FS&, const char*, uint32_t) {  };
+void StackchanSystemConfig::setExtendSettings(JsonDocument&) {  };
 void StackchanSystemConfig::printExtParameters(void) {};
 
 void StackchanSystemConfig::basicConfigNotFoundCallback(void) {};

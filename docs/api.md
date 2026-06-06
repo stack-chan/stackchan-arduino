@@ -70,7 +70,7 @@ Stackchan Arduino Library は、M5Stack デバイス上で Stack-chan を制御�
 - **`loadExtendConfig(fs::FS& fs, const char *yaml_filename, uint32_t yaml_size)`**
   - 拡張設定ファイルを読み込みます。
 
-- **`setExtendSettings(DynamicJsonDocument doc)`**
+- **`setExtendSettings(JsonDocument& doc)`**
   - 拡張設定を適用します。
 
 - **`printExtParameters()`**

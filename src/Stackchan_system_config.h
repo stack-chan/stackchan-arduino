@@ -70,10 +70,10 @@ class StackchanSystemConfig {
         secret_config_s _secret_config;                      // 個人情報の構造体
         bool _secret_config_show;                            // 個人情報をログに出すかどうか
         void setDefaultParameters();
-        void setSystemConfig(DynamicJsonDocument doc);
+        void setSystemConfig(JsonDocument& doc);
 
         void loadSecretConfig(fs::FS& fs, const char* yaml_filename, uint32_t yaml_size);
-        void setSecretConfig(DynamicJsonDocument doc);
+        void setSecretConfig(JsonDocument& doc);
         void printSecretParameters(void);
     public:
         StackchanSystemConfig();
@@ -99,7 +99,7 @@ class StackchanSystemConfig {
         bool getUseTakaoBase() { return _takao_base; }
         uint8_t getServoType() { return _servo_type; }
         virtual void loadExtendConfig(fs::FS& fs, const char* yaml_filename, uint32_t yaml_size);
-        virtual void setExtendSettings(DynamicJsonDocument doc);
+        virtual void setExtendSettings(JsonDocument& doc);
         virtual void printExtParameters(void);
 
         virtual void basicConfigNotFoundCallback(void);

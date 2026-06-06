@@ -70,7 +70,7 @@ A class that extends `StackchanSystemConfig` and manages application-specific se
 - **`loadExtendConfig(fs::FS& fs, const char *yaml_filename, uint32_t yaml_size)`**
   - Loads an extended configuration file.
 
-- **`setExtendSettings(DynamicJsonDocument doc)`**
+- **`setExtendSettings(JsonDocument& doc)`**
   - Applies extended settings.
 
 - **`printExtParameters()`**

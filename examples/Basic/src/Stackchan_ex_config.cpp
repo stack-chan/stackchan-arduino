@@ -5,10 +5,11 @@ StackchanExConfig::StackchanExConfig() {};
 StackchanExConfig::~StackchanExConfig() {};
 
 void StackchanExConfig::loadExtendConfig(fs::FS& fs, const char *yaml_filename, uint32_t yaml_size) {
+    (void)yaml_size;
     M5_LOGI("----- StackchanExConfig::loadConfig:%s\n", yaml_filename);
     File file = fs.open(yaml_filename);
     if (file) {
-        DynamicJsonDocument doc(yaml_size);
+        JsonDocument doc;
         auto err = deserializeYml( doc, file);
         if (err) {
             M5_LOGE("yaml file read error: %s\n", yaml_filename);
@@ -19,7 +20,7 @@ void StackchanExConfig::loadExtendConfig(fs::FS& fs, const char *yaml_filename, 
     }
 }
 
-void StackchanExConfig::setExtendSettings(DynamicJsonDocument doc) {
+void StackchanExConfig::setExtendSettings(JsonDocument& doc) {
     JsonObject app_param1 = doc["app_parameters1"];
     _ex_parameters.item1 = doc["app_parameters1"]["item1"].as<String>();            // 文字列はこのように記述
     _ex_parameters.item2 = app_param1["item2"];                          // 数値

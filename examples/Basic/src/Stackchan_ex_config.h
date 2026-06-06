@@ -26,7 +26,7 @@ class StackchanExConfig : public StackchanSystemConfig
         ~StackchanExConfig();
 
         void loadExtendConfig(fs::FS& fs, const char *yaml_filename, uint32_t yaml_size) override;
-        void setExtendSettings(DynamicJsonDocument doc) override;
+        void setExtendSettings(JsonDocument& doc) override;
         void printExtParameters(void) override;
         ex_config_s getExConfig() { return _ex_parameters; }
         uint8_t getListStrCount() { return _list_str_count; }

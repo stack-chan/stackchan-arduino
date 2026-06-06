@@ -12,7 +12,7 @@ static long convertDYNIXELXL330(int16_t degree) {
   M5_LOGI("Degree: %d\n", degree);
   
   long ret =  map(degree, 0, 360, 0, 4095);
-  M5_LOGI("Position: %d\n", ret);
+  M5_LOGI("Position: %ld\n", ret);
   return ret;
 }
 
@@ -20,7 +20,7 @@ static long convertDYNIXELXL330_RT(int16_t degree) {
   M5_LOGI("Degree: %d\n", degree);
   
   long ret =  map(degree, -360, 720, -4095, 8191);
-  M5_LOGI("Position: %d\n", ret);
+  M5_LOGI("Position: %ld\n", ret);
   return ret;
 }
 
@@ -85,8 +85,6 @@ void StackchanSERVO::attachServos() {
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(200));
-
-        uint32_t start_tick = millis();
 
         if (_ioexpander->begin()) {
             break;
@@ -410,7 +408,7 @@ void StackchanSERVO::turnX(uint32_t speed, bool is_cw, uint32_t millis_for_move)
     if (is_cw) {
       speed += 1000; // 逆回転時は+1000
     }
-    Serial.printf("speed: %d\n", speed);
+    Serial.printf("speed: %lu\n", static_cast<unsigned long>(speed));
     _sc.PWMMode(1, true); // 回転モード
     _isMoving = true;
     _sc.WritePWM(1, speed);
