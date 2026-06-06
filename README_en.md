@@ -22,7 +22,7 @@ Stack Chan Library for ArduinoFramework
 The settings are commented in detail in each file; please write them in YAML format. <br>* YAML is used because it is convenient to describe comments.
 - [SC_BasicConfig.yaml](./data/yaml/SC_BasicConfig.yaml)<br>This file collects the basic parameters necessary to start the stack chan.
 - [SC_SecConfig.yaml](./data/yaml/SC_SecConfig.yaml)<br>Configuration file for personal information. (WiFi, APIKey, etc.)
-- [SC_ExConfig.yaml](./data/yaml/SC_ExConfig.yaml)<br>This is used when you want to add settings on the application side. The usage is [Folder](./examples/Basic/) source for usage.
+- [SC_AppConfig.yaml](./data/SC_APP/SC_AppConfig.yaml)<br>This is used when you want to add settings on the application side. The usage is [Folder](./examples/Basic/) source for usage.
 
 # Required Library
 

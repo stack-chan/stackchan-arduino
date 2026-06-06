@@ -25,6 +25,12 @@ A class that loads configuration files and manages system settings.
 - **`printAllParameters()`**
   - Outputs all configuration parameters to the log.
 
+- **`setupMode(const char* app_yaml_filename, const char* secret_yaml_filename, const char* basic_yaml_filename)`**
+  - Starts setup mode for editing YAML configuration files on SPIFFS from a web browser.
+  - The AP IP address is `192.168.0.4`, and the SSID is `Stackchan-` followed by the last 4 MAC address digits.
+  - The setup page exposes each setting as a textarea and saves the result back to YAML files on SPIFFS.
+  - This function does not return because it keeps the web server running.
+
 - **`getServoInfo(uint8_t servo_axis_no)`**
   - Gets information for the specified servo axis.
 
@@ -63,7 +69,7 @@ A class that controls servo motors.
 
 ---
 
-### 3. `StackchanExConfig`
+### 3. `StackchanAppConfig`
 A class that extends `StackchanSystemConfig` and manages application-specific settings.
 
 #### Methods
@@ -106,7 +112,7 @@ Basic configuration file. Defines servo pin numbers, initial positions, movement
 ### SC_SecConfig.yaml
 Personal information configuration file. Defines the WiFi SSID and password, API keys, and other settings.
 
-### SC_ExtConfig.yaml
+### SC_AppConfig.yaml
 Extended configuration file. Describes application-specific settings.
 
 ---

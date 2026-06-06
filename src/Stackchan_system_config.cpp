@@ -2,6 +2,406 @@
 #define STACKCHAN_SYSTEM_CONFIG_CPP
 #include "Stackchan_system_config.h"
 
+#include <DNSServer.h>
+#include <SPIFFS.h>
+#include <WebServer.h>
+#include <WiFi.h>
+
+namespace {
+
+static const byte DNS_PORT = 53;
+static const IPAddress SETUP_MODE_IP(192, 168, 0, 4);
+static const IPAddress SETUP_MODE_GATEWAY(192, 168, 0, 4);
+static const IPAddress SETUP_MODE_SUBNET(255, 255, 255, 0);
+
+String htmlEscape(const String& value) {
+    String escaped;
+    escaped.reserve(value.length() + 16);
+    for (size_t i = 0; i < value.length(); ++i) {
+        const char c = value[i];
+        switch (c) {
+            case '&': escaped += F("&amp;"); break;
+            case '<': escaped += F("&lt;"); break;
+            case '>': escaped += F("&gt;"); break;
+            case '"': escaped += F("&quot;"); break;
+            case '\'': escaped += F("&#39;"); break;
+            default: escaped += c; break;
+        }
+    }
+    return escaped;
+}
+
+String yamlQuote(const String& value) {
+    String quoted = "\"";
+    for (size_t i = 0; i < value.length(); ++i) {
+        const char c = value[i];
+        if (c == '"' || c == '\\') {
+            quoted += '\\';
+        }
+        if (c == '\n') {
+            quoted += "\\n";
+        } else if (c != '\r') {
+            quoted += c;
+        }
+    }
+    quoted += '"';
+    return quoted;
+}
+
+String jsonValueToString(JsonVariantConst value, const String& fallback = "") {
+    if (value.isNull()) {
+        return fallback;
+    }
+    if (value.is<const char*>()) {
+        return value.as<String>();
+    }
+    if (value.is<bool>()) {
+        return value.as<bool>() ? "true" : "false";
+    }
+    if (value.is<int>()) {
+        return String(value.as<int>());
+    }
+    if (value.is<unsigned int>()) {
+        return String(value.as<unsigned int>());
+    }
+    if (value.is<long>()) {
+        return String(value.as<long>());
+    }
+    if (value.is<unsigned long>()) {
+        return String(value.as<unsigned long>());
+    }
+    if (value.is<float>() || value.is<double>()) {
+        return String(value.as<double>());
+    }
+    return fallback;
+}
+
+String jsonArrayToLines(JsonArrayConst array) {
+    String lines;
+    for (JsonVariantConst item : array) {
+        if (lines.length() > 0) {
+            lines += '\n';
+        }
+        lines += jsonValueToString(item);
+    }
+    return lines;
+}
+
+bool hasYamlContent(const String& content) {
+    bool line_has_content = false;
+    for (size_t i = 0; i < content.length(); ++i) {
+        const char c = content[i];
+        if (c == '#') {
+            while (i < content.length() && content[i] != '\n') {
+                ++i;
+            }
+            line_has_content = false;
+            continue;
+        }
+        if (c == '\n' || c == '\r') {
+            line_has_content = false;
+            continue;
+        }
+        if (c == ' ' || c == '\t') {
+            continue;
+        }
+        line_has_content = true;
+        break;
+    }
+    return line_has_content;
+}
+
+String readTextFile(fs::FS& fs, const char* path) {
+    File file = fs.open(path, FILE_READ);
+    if (!file) {
+        return "";
+    }
+
+    String content;
+    content.reserve(file.size() + 1);
+    while (file.available()) {
+        content += static_cast<char>(file.read());
+    }
+    file.close();
+    return content;
+}
+
+bool writeTextFile(fs::FS& fs, const char* path, const String& content) {
+    fs.mkdir("/yaml");
+    fs.mkdir("/SC_APP");
+    File file = fs.open(path, FILE_WRITE);
+    if (!file) {
+        return false;
+    }
+    size_t written = file.print(content);
+    file.close();
+    return written == content.length();
+}
+
+void loadYamlFile(fs::FS& fs, const char* path, JsonDocument& doc) {
+    String content = readTextFile(fs, path);
+    if (!hasYamlContent(content)) {
+        return;
+    }
+    DeserializationError err = deserializeYml(doc, content.c_str());
+    if (err) {
+        M5_LOGW("setupMode yaml parse error: %s: %s", path, err.c_str());
+    }
+}
+
+void appendTextarea(String& html, const __FlashStringHelper* label, const char* name, const String& value, uint8_t rows = 1) {
+    html += F("<label><span>");
+    html += label;
+    html += F("</span><textarea name=\"");
+    html += name;
+    html += F("\" rows=\"");
+    html += rows;
+    html += F("\">");
+    html += htmlEscape(value);
+    html += F("</textarea></label>");
+}
+
+String setupModeSsid() {
+    uint16_t suffix = static_cast<uint16_t>(ESP.getEfuseMac() & 0xFFFF);
+    char suffixText[5];
+    snprintf(suffixText, sizeof(suffixText), "%04X", suffix);
+    return String("Stackchan-") + suffixText;
+}
+
+String argOr(WebServer& server, const char* name, const String& fallback = "") {
+    return server.hasArg(name) ? server.arg(name) : fallback;
+}
+
+String buildBasicYaml(WebServer& server) {
+    String yaml;
+    yaml.reserve(2200);
+    yaml += F("servo:\n");
+    yaml += F("  pin:\n");
+    yaml += F("    x: "); yaml += argOr(server, "servo_pin_x", "7"); yaml += '\n';
+    yaml += F("    y: "); yaml += argOr(server, "servo_pin_y", "6"); yaml += '\n';
+    yaml += F("  offset:\n");
+    yaml += F("    x: "); yaml += argOr(server, "servo_offset_x", "0"); yaml += '\n';
+    yaml += F("    y: "); yaml += argOr(server, "servo_offset_y", "0"); yaml += '\n';
+    yaml += F("  center:\n");
+    yaml += F("    x: "); yaml += argOr(server, "servo_center_x", "150"); yaml += '\n';
+    yaml += F("    y: "); yaml += argOr(server, "servo_center_y", "90"); yaml += '\n';
+    yaml += F("  lower_limit:\n");
+    yaml += F("    x: "); yaml += argOr(server, "servo_lower_x", "0"); yaml += '\n';
+    yaml += F("    y: "); yaml += argOr(server, "servo_lower_y", "0"); yaml += '\n';
+    yaml += F("  upper_limit:\n");
+    yaml += F("    x: "); yaml += argOr(server, "servo_upper_x", "300"); yaml += '\n';
+    yaml += F("    y: "); yaml += argOr(server, "servo_upper_y", "90"); yaml += '\n';
+    yaml += F("  speed:\n");
+    yaml += F("    normal_mode:\n");
+    yaml += F("      interval_min: "); yaml += argOr(server, "speed_normal_interval_min", "3000"); yaml += '\n';
+    yaml += F("      interval_max: "); yaml += argOr(server, "speed_normal_interval_max", "6000"); yaml += '\n';
+    yaml += F("      move_min: "); yaml += argOr(server, "speed_normal_move_min", "500"); yaml += '\n';
+    yaml += F("      move_max: "); yaml += argOr(server, "speed_normal_move_max", "1500"); yaml += '\n';
+    yaml += F("    sing_mode:\n");
+    yaml += F("      interval_min: "); yaml += argOr(server, "speed_sing_interval_min", "500"); yaml += '\n';
+    yaml += F("      interval_max: "); yaml += argOr(server, "speed_sing_interval_max", "1000"); yaml += '\n';
+    yaml += F("      move_min: "); yaml += argOr(server, "speed_sing_move_min", "500"); yaml += '\n';
+    yaml += F("      move_max: "); yaml += argOr(server, "speed_sing_move_max", "1000"); yaml += '\n';
+    yaml += F("takao_base: "); yaml += argOr(server, "takao_base", "false"); yaml += '\n';
+    yaml += F("servo_type: "); yaml += yamlQuote(argOr(server, "servo_type", "M5_SCS")); yaml += '\n';
+    yaml += F("bluetooth:\n");
+    yaml += F("  device_name: "); yaml += yamlQuote(argOr(server, "bluetooth_device_name", "M5StackBTSPK")); yaml += '\n';
+    yaml += F("  starting_state: "); yaml += argOr(server, "bluetooth_starting_state", "false"); yaml += '\n';
+    yaml += F("  start_volume: "); yaml += argOr(server, "bluetooth_start_volume", "100"); yaml += '\n';
+    yaml += F("auto_power_off_time: "); yaml += argOr(server, "auto_power_off_time", "0"); yaml += '\n';
+    yaml += F("balloon:\n");
+    yaml += F("  font_language: "); yaml += yamlQuote(argOr(server, "balloon_font_language", "JA")); yaml += '\n';
+    yaml += F("  lyrics:\n");
+
+    String lyrics = argOr(server, "balloon_lyrics");
+    lyrics.replace("\r\n", "\n");
+    lyrics.replace("\r", "\n");
+    int start = 0;
+    bool wroteLyric = false;
+    while (start <= static_cast<int>(lyrics.length())) {
+        int end = lyrics.indexOf('\n', start);
+        if (end < 0) {
+            end = lyrics.length();
+        }
+        String line = lyrics.substring(start, end);
+        if (line.length() > 0) {
+            yaml += F("  - ");
+            yaml += yamlQuote(line);
+            yaml += '\n';
+            wroteLyric = true;
+        }
+        start = end + 1;
+        if (end == static_cast<int>(lyrics.length())) {
+            break;
+        }
+    }
+    if (!wroteLyric) {
+        yaml += F("  - \"\"\n");
+    }
+
+    yaml += F("led_lr: "); yaml += argOr(server, "led_lr", "0"); yaml += '\n';
+    yaml += F("led_pin: "); yaml += argOr(server, "led_pin", "15"); yaml += '\n';
+    yaml += F("extend_config_filename: "); yaml += yamlQuote(argOr(server, "extend_config_filename")); yaml += '\n';
+    yaml += F("extend_config_filesize: "); yaml += argOr(server, "extend_config_filesize", "0"); yaml += '\n';
+    yaml += F("secret_config_filename: "); yaml += yamlQuote(argOr(server, "secret_config_filename")); yaml += '\n';
+    yaml += F("secret_config_filesize: "); yaml += argOr(server, "secret_config_filesize", "0"); yaml += '\n';
+    yaml += F("secret_info_show: "); yaml += argOr(server, "secret_info_show", "false"); yaml += '\n';
+    return yaml;
+}
+
+String buildSecretYaml(WebServer& server) {
+    String yaml;
+    yaml.reserve(320);
+    yaml += F("wifi:\n");
+    yaml += F("  ssid: "); yaml += yamlQuote(argOr(server, "wifi_ssid")); yaml += '\n';
+    yaml += F("  password: "); yaml += yamlQuote(argOr(server, "wifi_password")); yaml += '\n';
+    yaml += F("apikey:\n");
+    yaml += F("  stt: "); yaml += yamlQuote(argOr(server, "apikey_stt")); yaml += '\n';
+    yaml += F("  aiservice: "); yaml += yamlQuote(argOr(server, "apikey_aiservice")); yaml += '\n';
+    yaml += F("  tts: "); yaml += yamlQuote(argOr(server, "apikey_tts")); yaml += '\n';
+    return yaml;
+}
+
+bool validateYaml(const String& yaml, String& error) {
+    JsonDocument doc;
+    DeserializationError err = deserializeYml(doc, yaml.c_str());
+    if (err) {
+        error = err.c_str();
+        return false;
+    }
+    return true;
+}
+
+}  // namespace
+
+void StackchanSystemConfig::appendSetupModeTextarea(String& html, const __FlashStringHelper* label,
+                                                    const char* name, const String& value, uint8_t rows) {
+    appendTextarea(html, label, name, value, rows);
+}
+
+String StackchanSystemConfig::setupModeYamlQuote(const String& value) {
+    return yamlQuote(value);
+}
+
+String StackchanSystemConfig::setupModeJsonValueToString(JsonVariantConst value, const String& fallback) {
+    return jsonValueToString(value, fallback);
+}
+
+String StackchanSystemConfig::setupModeJsonArrayToLines(JsonArrayConst array) {
+    return jsonArrayToLines(array);
+}
+
+void StackchanSystemConfig::appendSetupModeExtendHtml(String& html, JsonDocument&, const String& raw_yaml) {
+    html += F("<fieldset><legend>Extend YAML</legend>");
+    appendSetupModeTextarea(html, F("app yaml"), "app_yaml", raw_yaml, 12);
+    html += F("</fieldset>");
+}
+
+bool StackchanSystemConfig::buildSetupModeExtendYaml(WebServer& server, String& yaml, String& error) {
+    yaml = argOr(server, "app_yaml");
+    if (yaml.length() > 0 && !validateYaml(yaml, error)) {
+        error = "Extend YAML parse error: " + error;
+        return false;
+    }
+    return true;
+}
+
+String StackchanSystemConfig::renderSetupPage(const String& message, const char* appYamlFilename,
+                                              const char* secretYamlFilename, const char* basicYamlFilename) {
+    JsonDocument basicDoc;
+    JsonDocument secretDoc;
+    JsonDocument appDoc;
+    loadYamlFile(SPIFFS, basicYamlFilename, basicDoc);
+    loadYamlFile(SPIFFS, secretYamlFilename, secretDoc);
+    loadYamlFile(SPIFFS, appYamlFilename, appDoc);
+    String appYaml = readTextFile(SPIFFS, appYamlFilename);
+
+    String html;
+    html.reserve(14000);
+    html += F("<!doctype html><html lang=\"ja\"><head><meta charset=\"utf-8\">");
+    html += F("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">");
+    html += F("<title>Stackchan Setup</title><style>");
+    html += F("body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;background:#f6f7f9;color:#1d232a}");
+    html += F("header{position:sticky;top:0;background:#fff;border-bottom:1px solid #d8dde4;padding:14px 16px;z-index:1}");
+    html += F("main{max-width:920px;margin:0 auto;padding:16px}");
+    html += F("fieldset{border:1px solid #d8dde4;background:#fff;margin:0 0 16px;padding:16px}");
+    html += F("legend{font-weight:700;padding:0 6px}");
+    html += F("label{display:block;margin:12px 0}span{display:block;font-size:13px;font-weight:600;margin-bottom:4px}");
+    html += F("textarea{box-sizing:border-box;width:100%;min-height:38px;padding:8px;border:1px solid #b8c0cc;border-radius:4px;font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}");
+    html += F(".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px 14px}");
+    html += F(".message{background:#e8f5ee;border:1px solid #9bd0b5;padding:10px;margin:0 0 14px}");
+    html += F(".error{background:#fff0f0;border-color:#d99}");
+    html += F("button{appearance:none;border:0;background:#174ea6;color:#fff;padding:12px 18px;border-radius:4px;font-weight:700}");
+    html += F("</style></head><body><header><strong>Stackchan Setup</strong><div>AP: ");
+    html += htmlEscape(WiFi.softAPSSID());
+    html += F(" / http://192.168.0.4/</div></header><main>");
+    if (message.length() > 0) {
+        html += F("<div class=\"message");
+        if (message.startsWith("ERROR:")) {
+            html += F(" error");
+        }
+        html += F("\">");
+        html += htmlEscape(message);
+        html += F("</div>");
+    }
+    html += F("<form method=\"post\" action=\"/save\">");
+
+    html += F("<fieldset><legend>Servo</legend><div class=\"grid\">");
+    appendTextarea(html, F("servo.pin.x"), "servo_pin_x", jsonValueToString(basicDoc["servo"]["pin"]["x"], "7"));
+    appendTextarea(html, F("servo.pin.y"), "servo_pin_y", jsonValueToString(basicDoc["servo"]["pin"]["y"], "6"));
+    appendTextarea(html, F("servo.offset.x"), "servo_offset_x", jsonValueToString(basicDoc["servo"]["offset"]["x"], "0"));
+    appendTextarea(html, F("servo.offset.y"), "servo_offset_y", jsonValueToString(basicDoc["servo"]["offset"]["y"], "0"));
+    appendTextarea(html, F("servo.center.x"), "servo_center_x", jsonValueToString(basicDoc["servo"]["center"]["x"], "150"));
+    appendTextarea(html, F("servo.center.y"), "servo_center_y", jsonValueToString(basicDoc["servo"]["center"]["y"], "90"));
+    appendTextarea(html, F("servo.lower_limit.x"), "servo_lower_x", jsonValueToString(basicDoc["servo"]["lower_limit"]["x"], "0"));
+    appendTextarea(html, F("servo.lower_limit.y"), "servo_lower_y", jsonValueToString(basicDoc["servo"]["lower_limit"]["y"], "0"));
+    appendTextarea(html, F("servo.upper_limit.x"), "servo_upper_x", jsonValueToString(basicDoc["servo"]["upper_limit"]["x"], "300"));
+    appendTextarea(html, F("servo.upper_limit.y"), "servo_upper_y", jsonValueToString(basicDoc["servo"]["upper_limit"]["y"], "90"));
+    appendTextarea(html, F("servo_type"), "servo_type", jsonValueToString(basicDoc["servo_type"], "M5_SCS"));
+    appendTextarea(html, F("takao_base"), "takao_base", jsonValueToString(basicDoc["takao_base"], "false"));
+    html += F("</div></fieldset>");
+
+    html += F("<fieldset><legend>Servo Speed</legend><div class=\"grid\">");
+    appendTextarea(html, F("normal.interval_min"), "speed_normal_interval_min", jsonValueToString(basicDoc["servo"]["speed"]["normal_mode"]["interval_min"], "3000"));
+    appendTextarea(html, F("normal.interval_max"), "speed_normal_interval_max", jsonValueToString(basicDoc["servo"]["speed"]["normal_mode"]["interval_max"], "6000"));
+    appendTextarea(html, F("normal.move_min"), "speed_normal_move_min", jsonValueToString(basicDoc["servo"]["speed"]["normal_mode"]["move_min"], "500"));
+    appendTextarea(html, F("normal.move_max"), "speed_normal_move_max", jsonValueToString(basicDoc["servo"]["speed"]["normal_mode"]["move_max"], "1500"));
+    appendTextarea(html, F("sing.interval_min"), "speed_sing_interval_min", jsonValueToString(basicDoc["servo"]["speed"]["sing_mode"]["interval_min"], "500"));
+    appendTextarea(html, F("sing.interval_max"), "speed_sing_interval_max", jsonValueToString(basicDoc["servo"]["speed"]["sing_mode"]["interval_max"], "1000"));
+    appendTextarea(html, F("sing.move_min"), "speed_sing_move_min", jsonValueToString(basicDoc["servo"]["speed"]["sing_mode"]["move_min"], "500"));
+    appendTextarea(html, F("sing.move_max"), "speed_sing_move_max", jsonValueToString(basicDoc["servo"]["speed"]["sing_mode"]["move_max"], "1000"));
+    html += F("</div></fieldset>");
+
+    html += F("<fieldset><legend>Application</legend><div class=\"grid\">");
+    appendTextarea(html, F("bluetooth.device_name"), "bluetooth_device_name", jsonValueToString(basicDoc["bluetooth"]["device_name"], "M5StackBTSPK"));
+    appendTextarea(html, F("bluetooth.starting_state"), "bluetooth_starting_state", jsonValueToString(basicDoc["bluetooth"]["starting_state"], "false"));
+    appendTextarea(html, F("bluetooth.start_volume"), "bluetooth_start_volume", jsonValueToString(basicDoc["bluetooth"]["start_volume"], "100"));
+    appendTextarea(html, F("auto_power_off_time"), "auto_power_off_time", jsonValueToString(basicDoc["auto_power_off_time"], "0"));
+    appendTextarea(html, F("balloon.font_language"), "balloon_font_language", jsonValueToString(basicDoc["balloon"]["font_language"], "JA"));
+    appendTextarea(html, F("led_lr"), "led_lr", jsonValueToString(basicDoc["led_lr"], "0"));
+    appendTextarea(html, F("led_pin"), "led_pin", jsonValueToString(basicDoc["led_pin"], "15"));
+    appendTextarea(html, F("extend_config_filename"), "extend_config_filename", jsonValueToString(basicDoc["extend_config_filename"]));
+    appendTextarea(html, F("extend_config_filesize"), "extend_config_filesize", jsonValueToString(basicDoc["extend_config_filesize"], "0"));
+    appendTextarea(html, F("secret_config_filename"), "secret_config_filename", jsonValueToString(basicDoc["secret_config_filename"]));
+    appendTextarea(html, F("secret_config_filesize"), "secret_config_filesize", jsonValueToString(basicDoc["secret_config_filesize"], "0"));
+    appendTextarea(html, F("secret_info_show"), "secret_info_show", jsonValueToString(basicDoc["secret_info_show"], jsonValueToString(basicDoc["secret_config_show"], "false")));
+    html += F("</div>");
+    appendTextarea(html, F("balloon.lyrics"), "balloon_lyrics", jsonArrayToLines(basicDoc["balloon"]["lyrics"].as<JsonArrayConst>()), 8);
+    html += F("</fieldset>");
+
+    html += F("<fieldset><legend>Secret</legend><div class=\"grid\">");
+    appendTextarea(html, F("wifi.ssid"), "wifi_ssid", jsonValueToString(secretDoc["wifi"]["ssid"]));
+    appendTextarea(html, F("wifi.password"), "wifi_password", jsonValueToString(secretDoc["wifi"]["password"]));
+    appendTextarea(html, F("apikey.stt"), "apikey_stt", jsonValueToString(secretDoc["apikey"]["stt"]));
+    appendTextarea(html, F("apikey.aiservice"), "apikey_aiservice", jsonValueToString(secretDoc["apikey"]["aiservice"]));
+    appendTextarea(html, F("apikey.tts"), "apikey_tts", jsonValueToString(secretDoc["apikey"]["tts"]));
+    html += F("</div></fieldset>");
+
+    appendSetupModeExtendHtml(html, appDoc, appYaml);
+    html += F("<button type=\"submit\">保存</button></form></main></body></html>");
+    return html;
+}
+
 StackchanSystemConfig::StackchanSystemConfig() {
 
 };
@@ -197,8 +597,101 @@ void StackchanSystemConfig::setSystemConfig(JsonDocument& doc) {
         // PWMサーボ
         _servo_type = ServoType::PWM;
     }
-    _secret_config_show     = doc["secret_config_show"].as<bool>(); 
+    if (!doc["secret_config_show"].isNull()) {
+        _secret_config_show = doc["secret_config_show"].as<bool>();
+    } else {
+        _secret_config_show = doc["secret_info_show"].as<bool>();
+    }
     
+}
+
+void StackchanSystemConfig::setupMode(const char* app_yaml_filename,
+                                      const char* secret_yaml_filename,
+                                      const char* basic_yaml_filename) {
+    if (!SPIFFS.begin(true)) {
+        M5_LOGE("SPIFFS begin failed.");
+        return;
+    }
+
+    String ssid = setupModeSsid();
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_AP);
+    WiFi.softAPConfig(SETUP_MODE_IP, SETUP_MODE_GATEWAY, SETUP_MODE_SUBNET);
+    WiFi.softAP(ssid.c_str());
+
+    DNSServer dnsServer;
+    WebServer server(80);
+    dnsServer.start(DNS_PORT, "*", SETUP_MODE_IP);
+
+    M5_LOGI("Setup mode started. SSID:%s IP:%s", ssid.c_str(), SETUP_MODE_IP.toString().c_str());
+    if (M5.Display.width() > 0) {
+        M5.Display.clear();
+        M5.Display.setTextSize(2);
+        M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+        M5.Display.setTextWrap(true);
+        M5.Display.setCursor(0, 0);
+        M5.Display.println("Setup Mode");
+        M5.Display.println();
+        M5.Display.println("WiFi Access Point");
+        M5.Display.printf("SSID:\n%s\n\n", ssid.c_str());
+        M5.Display.println("Open browser:");
+        M5.Display.println("http://192.168.0.4/");
+    }
+
+    String message;
+    server.on("/", HTTP_GET, [&]() {
+        server.send(200, "text/html; charset=utf-8",
+                    renderSetupPage(message, app_yaml_filename, secret_yaml_filename, basic_yaml_filename));
+    });
+
+    server.on("/save", HTTP_POST, [&]() {
+        String basicYaml = buildBasicYaml(server);
+        String secretYaml = buildSecretYaml(server);
+        String appYaml;
+        String error;
+
+        if (!validateYaml(basicYaml, error)) {
+            message = "ERROR: Basic YAML parse error: " + error;
+        } else if (!validateYaml(secretYaml, error)) {
+            message = "ERROR: Secret YAML parse error: " + error;
+        } else if (!buildSetupModeExtendYaml(server, appYaml, error)) {
+            message = "ERROR: " + error;
+        } else if (!writeTextFile(SPIFFS, basic_yaml_filename, basicYaml)) {
+            message = "ERROR: Basic YAML save failed.";
+        } else if (!writeTextFile(SPIFFS, secret_yaml_filename, secretYaml)) {
+            message = "ERROR: Secret YAML save failed.";
+        } else if (appYaml.length() > 0 && !writeTextFile(SPIFFS, app_yaml_filename, appYaml)) {
+            message = "ERROR: Extend YAML save failed.";
+        } else {
+            message = "Saved to SPIFFS.";
+        }
+
+        server.send(200, "text/html; charset=utf-8",
+                    renderSetupPage(message, app_yaml_filename, secret_yaml_filename, basic_yaml_filename));
+    });
+
+    server.on("/generate_204", HTTP_GET, [&]() {
+        server.sendHeader("Location", String("http://") + SETUP_MODE_IP.toString(), true);
+        server.send(302, "text/plain", "");
+    });
+
+    server.on("/hotspot-detect.html", HTTP_GET, [&]() {
+        server.send(200, "text/html; charset=utf-8",
+                    renderSetupPage(message, app_yaml_filename, secret_yaml_filename, basic_yaml_filename));
+    });
+
+    server.onNotFound([&]() {
+        server.send(200, "text/html; charset=utf-8",
+                    renderSetupPage(message, app_yaml_filename, secret_yaml_filename, basic_yaml_filename));
+    });
+
+    server.begin();
+    while (true) {
+        dnsServer.processNextRequest();
+        server.handleClient();
+        M5.update();
+        delay(2);
+    }
 }
 
 void StackchanSystemConfig::setSecretConfig(JsonDocument& doc) {

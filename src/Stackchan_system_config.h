@@ -5,6 +5,7 @@
 #include <M5Unified.h>
 #include <YAMLDuino.h>
 #include <FS.h>
+#include <WebServer.h>
 #include "Stackchan_servo.h"
 
 typedef struct ServoInterval {
@@ -75,12 +76,24 @@ class StackchanSystemConfig {
         void loadSecretConfig(fs::FS& fs, const char* yaml_filename, uint32_t yaml_size);
         void setSecretConfig(JsonDocument& doc);
         void printSecretParameters(void);
+        String renderSetupPage(const String& message, const char* app_yaml_filename,
+                               const char* secret_yaml_filename, const char* basic_yaml_filename);
+        virtual void appendSetupModeExtendHtml(String& html, JsonDocument& doc, const String& raw_yaml);
+        virtual bool buildSetupModeExtendYaml(WebServer& server, String& yaml, String& error);
+        static void appendSetupModeTextarea(String& html, const __FlashStringHelper* label,
+                                            const char* name, const String& value, uint8_t rows = 1);
+        static String setupModeYamlQuote(const String& value);
+        static String setupModeJsonValueToString(JsonVariantConst value, const String& fallback = "");
+        static String setupModeJsonArrayToLines(JsonArrayConst array);
     public:
         StackchanSystemConfig();
         ~StackchanSystemConfig();
         void loadConfig(fs::FS& fs, const char *app_yaml_filename, uint32_t app_yaml_filesize=2048,
                         const char* secret_yaml_filename = "/yaml/SC_SecConfig.yaml", uint32_t secret_yaml_filesize=2048,
                         const char* basic_yaml_filename = "/yaml/SC_BasicConfig.yaml", uint32_t basic_yaml_filesize=2048);
+        void setupMode(const char* app_yaml_filename = "/SC_APP/SC_AppConfig.yaml",
+                       const char* secret_yaml_filename = "/yaml/SC_SecConfig.yaml",
+                       const char* basic_yaml_filename = "/yaml/SC_BasicConfig.yaml");
 
         void printAllParameters();
 

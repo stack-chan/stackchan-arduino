@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <M5Unified.h>
 #include <SD.h>
-#include "Stackchan_ex_config.h"
+#include "Stackchan_app_config.h"
 #include <Stackchan_servo.h>
 #include <Avatar.h>
 
@@ -10,7 +10,7 @@ using namespace m5avatar;
 Avatar avatar;
 
 StackchanSERVO servo;
-StackchanExConfig system_config;
+StackchanAppConfig system_config;
 
 void setup() {
   auto cfg = M5.config();

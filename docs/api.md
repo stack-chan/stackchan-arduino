@@ -25,6 +25,12 @@ Stackchan Arduino Library は、M5Stack デバイス上で Stack-chan を制御�
 - **`printAllParameters()`**
   - 全ての設定パラメータをログに出力します。
 
+- **`setupMode(const char* app_yaml_filename, const char* secret_yaml_filename, const char* basic_yaml_filename)`**
+  - SPIFFS 上の YAML 設定ファイルを Web ブラウザから編集するためのセットアップモードを起動します。
+  - AP の IP アドレスは `192.168.0.4`、SSID は `Stackchan-` に MAC アドレス下 4 桁を付けた名前になります。
+  - 設定ページでは各項目をテキストエリアで編集でき、保存すると SPIFFS の YAML ファイルに書き込みます。
+  - この関数は Web サーバー処理のため呼び出し元へ戻りません。
+
 - **`getServoInfo(uint8_t servo_axis_no)`**
   - 指定したサーボ軸の情報を取得します。
 
@@ -63,7 +69,7 @@ Stackchan Arduino Library は、M5Stack デバイス上で Stack-chan を制御�
 
 ---
 
-### 3. `StackchanExConfig`
+### 3. `StackchanAppConfig`
 `StackchanSystemConfig` を拡張したクラスで、アプリケーション固有の設定を管理します。
 
 #### メソッド
@@ -106,7 +112,7 @@ Stackchan Arduino Library は、M5Stack デバイス上で Stack-chan を制御�
 ### SC_SecConfig.yaml
 個人情報設定ファイル。WiFi の SSID やパスワード、API キーを定義します。
 
-### SC_ExtConfig.yaml
+### SC_AppConfig.yaml
 拡張設定ファイル。アプリケーション固有の設定を記述します。
 
 ---
