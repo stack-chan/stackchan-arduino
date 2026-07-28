@@ -5,7 +5,10 @@
 
 static long convertSCS0009Pos(int16_t degree) {
   //Serial.printf("Degree: %d\n", degree);
-  return map(degree, 0, 300, 1023, 0);
+  long pos = map(degree, 0, 300, 1023, 0);
+  if (pos < 0) pos = 0;
+  if (pos > 1023) pos = 1023;
+  return pos;
 }
 
 static long convertDYNIXELXL330(int16_t degree) {
