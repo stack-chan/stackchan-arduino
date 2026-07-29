@@ -47,7 +47,9 @@ StackchanSERVO::StackchanSERVO()
       _i2c(nullptr),
       _isMoving(false),
       _last_degree_x(90),
-      _last_degree_y(90) {}
+      _last_degree_y(90),
+      _power_off_degree_x(90),
+      _power_off_degree_y(90) {}
 
 StackchanSERVO::~StackchanSERVO() {}
 
@@ -103,9 +105,9 @@ void StackchanSERVO::attachServos() {
     delay(500);
     if (_ioexpander != nullptr) {
       M5_LOGI("IOExpander initialized.\n");
-      _ioexpander->setDirection(0, true); // X軸サーボピンを出力に設定
+      _ioexpander->setDirection(0, true); // VM(サーボ電源)ピンを出力に設定
       _ioexpander->setPullMode(0, true); // プルアップ設定
-      _ioexpander->digitalWrite(0, true); // HIGHに設定
+      _ioexpander->digitalWrite(0, true); // VM ON
       vTaskDelay(200/portTICK_PERIOD_MS);
     } else { 
       M5_LOGE("IOExpander not initialized!\n");
@@ -433,6 +435,38 @@ void StackchanSERVO::setTorque(bool onoff) {
   }
   _sc.EnableTorque(AXIS_X + 1, onoff);
   _sc.EnableTorque(AXIS_Y + 1, onoff);
+}
+
+void StackchanSERVO::setServoPower(bool onoff) {
+  if (_servo_type != ServoType::M5_SCS) {
+    M5_LOGI("setServoPower: Command is only supported in M5_SCS");
+    return;
+  }
+  if (_ioexpander == nullptr) {
+    M5_LOGE("setServoPower: IOExpander not initialized!");
+    return;
+  }
+  if (!onoff) {
+    // VM OFFの前に現在の角度を保存しておく
+    _power_off_degree_x = _last_degree_x;
+    _power_off_degree_y = _last_degree_y;
+    _ioexpander->digitalWrite(0, false); // VM OFF
+    return;
+  }
+
+  _ioexpander->digitalWrite(0, true); // VM ON
+  vTaskDelay(200/portTICK_PERIOD_MS);
+  if (!isSCSReady(_sc)) {
+    return;
+  }
+  // 保存しておいた角度でattach時と同じ手順（Ping + WritePos）を実行する
+  M5_LOGI("Servo ping:1:%d\n", _sc.Ping(1));
+  M5_LOGI("Servo ping:2:%d\n", _sc.Ping(2));
+  _sc.WritePos(AXIS_X + 1, convertSCS0009Pos(_power_off_degree_x + _init_param.servo[AXIS_X].offset), 1000);
+  _sc.WritePos(AXIS_Y + 1, convertSCS0009Pos(_power_off_degree_y + _init_param.servo[AXIS_Y].offset), 1000);
+  vTaskDelay(1000/portTICK_PERIOD_MS);
+  _last_degree_x = _power_off_degree_x;
+  _last_degree_y = _power_off_degree_y;
 }
 
 void StackchanSERVO::motion(Motion motion_number) {

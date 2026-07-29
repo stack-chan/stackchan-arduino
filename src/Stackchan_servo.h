@@ -72,6 +72,8 @@ class StackchanSERVO {
         bool _isMoving;
         int _last_degree_x;                              // 前回のX軸の角度
         int _last_degree_y;                              // 前回のY軸の角度
+        int16_t _power_off_degree_x;                     // VM OFF時に保存したX軸の角度
+        int16_t _power_off_degree_y;                     // VM OFF時に保存したY軸の角度
 
     public:
         StackchanSERVO();
@@ -92,6 +94,7 @@ class StackchanSERVO {
         void motion(Motion motion_no);
         void turnX(uint32_t speed, bool is_cw, uint32_t millis_for_move);
         void setTorque(bool onoff);
+        void setServoPower(bool onoff);
         bool isMoving() { return _isMoving; }
 };
 #endif // _STACKCHAN_SERVO_H_
