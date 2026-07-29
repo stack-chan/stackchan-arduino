@@ -423,6 +423,18 @@ void StackchanSERVO::turnX(uint32_t speed, bool is_cw, uint32_t millis_for_move)
   return;
 }
 
+void StackchanSERVO::setTorque(bool onoff) {
+  if (_servo_type != ServoType::SCS && _servo_type != ServoType::M5_SCS) {
+    M5_LOGI("setTorque: Command is only supported in SCS and M5_SCS");
+    return;
+  }
+  if (!isSCSReady(_sc)) {
+    return;
+  }
+  _sc.EnableTorque(AXIS_X + 1, onoff);
+  _sc.EnableTorque(AXIS_Y + 1, onoff);
+}
+
 void StackchanSERVO::motion(Motion motion_number) {
     if (motion_number == nomove) return; 
     moveXY(90, 75, 500);
