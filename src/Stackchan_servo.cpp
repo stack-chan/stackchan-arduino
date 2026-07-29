@@ -116,6 +116,7 @@ void StackchanSERVO::attachServos() {
     M5_LOGI("IOExpander setup done.\n");
 
     Serial2.begin(1000000, SERIAL_8N1, _init_param.servo[AXIS_X].pin, _init_param.servo[AXIS_Y].pin);
+    delay(500);
     _sc.pSerial = &Serial2;
     M5_LOGI("Servo ping:1:%d\n", _sc.Ping(1));
     M5_LOGI("Servo ping:2:%d\n", _sc.Ping(2));
@@ -455,7 +456,7 @@ void StackchanSERVO::setServoPower(bool onoff) {
   }
 
   _ioexpander->digitalWrite(0, true); // VM ON
-  vTaskDelay(200/portTICK_PERIOD_MS);
+  delay(500);
   if (!isSCSReady(_sc)) {
     return;
   }
